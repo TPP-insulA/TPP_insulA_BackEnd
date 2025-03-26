@@ -1,3 +1,28 @@
-node_modules
-# Keep environment variables out of version control
+# Environment variables
 .env
+.env.*
+
+# Credentials
+service-account.json
+*credentials*.json
+
+# Build artifacts
+/nightscout-api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Binary folder often used in Go projects
+/bin/
+
+# Development environment
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Testing
+*.test
+/coverage.txt
