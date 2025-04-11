@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User } from '@prisma/client';
+import { User } from '../models';
 
 /**
  * Hash password using bcrypt

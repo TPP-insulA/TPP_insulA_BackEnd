@@ -1,4 +1,50 @@
-import { User, GlucoseTarget, GlucoseReading, Activity, InsulinDose } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import path from 'path';
+
+// Definición de tipos basados en el esquema de Prisma
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type GlucoseTarget = {
+  id: string;
+  minTarget: number;
+  maxTarget: number;
+  userId: string;
+}
+
+export type GlucoseReading = {
+  id: string;
+  value: number;
+  timestamp: Date;
+  notes?: string | null;
+  userId: string;
+}
+
+export type Activity = {
+  id: string;
+  type: string;
+  value?: number | null;
+  mealType?: string | null;
+  carbs?: number | null;
+  units?: number | null;
+  timestamp: Date;
+  userId: string;
+}
+
+export type InsulinDose = {
+  id: string;
+  units: number;
+  glucoseLevel?: number | null;
+  carbIntake?: number | null;
+  timestamp: Date;
+  userId: string;
+}
 
 // Auth types
 export interface RegisterUserInput {
@@ -50,11 +96,14 @@ export interface CreateInsulinDoseInput {
   carbIntake?: number;
 }
 
-// Export Prisma types
-export type {
-  User,
-  GlucoseTarget,
-  GlucoseReading,
-  Activity,
-  InsulinDose
-};
+// Exportar instancia de PrismaClient para usar en la aplicación
+export const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL,
+  // Explicitly specify the path to the schema.prisma file
+  __internal: {
+    engine: {
+      binaryPath: path.join(__dirname, '../../node_modules/.prisma/client/query-engine-windows.exe'),
+      schemaPath: path.join(__dirname, '../../prisma/schema.prisma')
+    }
+  }
+});

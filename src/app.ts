@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Routes
 import userRoutes from './routes/user.routes';
@@ -18,6 +19,8 @@ import { errorHandler, notFound } from './middleware/error.middleware';
 dotenv.config();
 const app: Express = express();
 const port = process.env.PORT || 3000;
+
+// Initialize PrismaClient
 export const prisma = new PrismaClient();
 
 // Middleware
