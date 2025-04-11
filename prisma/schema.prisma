@@ -10,8 +10,15 @@ generator client {
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
-  name          String
+  firstName     String
+  lastName      String
   password      String
+  birthDay      Int
+  birthMonth    Int
+  birthYear     Int
+  weight        Float
+  height        Float
+  glucoseProfile String    // 'hypo' | 'normal' | 'hyper'
   glucoseTarget GlucoseTarget?
   readings      GlucoseReading[]
   activities    Activity[]

@@ -5,8 +5,15 @@ import path from 'path';
 export type User = {
   id: string;
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   password: string;
+  birthDay: number;
+  birthMonth: number;
+  birthYear: number;
+  weight: number;
+  height: number;
+  glucoseProfile: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,8 +56,15 @@ export type InsulinDose = {
 // Auth types
 export interface RegisterUserInput {
   email: string;
-  name: string;
   password: string;
+  firstName: string;
+  lastName: string;
+  birthDay: number;
+  birthMonth: number;
+  birthYear: number;
+  weight: number;
+  height: number;
+  glucoseProfile: 'hypo' | 'normal' | 'hyper';
 }
 
 export interface LoginInput {

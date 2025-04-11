@@ -10,7 +10,18 @@ import { RegisterUserInput, LoginInput } from '../models';
  * @access Public
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  const { email, name, password }: RegisterUserInput = req.body;
+  const { 
+    email, 
+    password, 
+    firstName, 
+    lastName, 
+    birthDay, 
+    birthMonth, 
+    birthYear, 
+    weight, 
+    height,
+    glucoseProfile 
+  }: RegisterUserInput = req.body;
 
   // Check if user exists
   const userExists = await prisma.user.findUnique({
@@ -29,17 +40,43 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
   const user = await prisma.user.create({
     data: {
       email,
-      name,
+      firstName,
+      lastName,
       password: hashedPassword,
+      birthDay: Number(birthDay),
+      birthMonth: Number(birthMonth),
+      birthYear: Number(birthYear),
+      weight: Number(weight),
+      height: Number(height),
+      glucoseProfile,
     },
   });
 
   if (user) {
-    // Create default glucose target
+    // Set glucose target values based on profile
+    let minTarget = 70;
+    let maxTarget = 180;
+    
+    switch (glucoseProfile) {
+      case 'hypo':
+        minTarget = 80; // Higher minimum for hypoglycemia-prone users
+        maxTarget = 160; // Lower maximum for better control
+        break;
+      case 'hyper':
+        minTarget = 100; // Higher minimum to avoid overcorrection
+        maxTarget = 200; // Higher maximum for hyperglycemia-prone users
+        break;
+      case 'normal':
+      default:
+        // Use default values
+        break;
+    }
+
+    // Create glucose target
     await prisma.glucoseTarget.create({
       data: {
-        minTarget: 70,
-        maxTarget: 180,
+        minTarget,
+        maxTarget,
         userId: user.id,
       },
     });
@@ -132,9 +169,16 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
   const updatedUser = await prisma.user.update({
     where: { id: req.user.id },
     data: {
-      name: req.body.name || user.name,
+      firstName: req.body.firstName || user.firstName,
+      lastName: req.body.lastName || user.lastName,
       email: req.body.email || user.email,
       password: req.body.password ? await hashPassword(req.body.password) : user.password,
+      birthDay: req.body.birthDay ? Number(req.body.birthDay) : user.birthDay,
+      birthMonth: req.body.birthMonth ? Number(req.body.birthMonth) : user.birthMonth,
+      birthYear: req.body.birthYear ? Number(req.body.birthYear) : user.birthYear,
+      weight: req.body.weight ? Number(req.body.weight) : user.weight,
+      height: req.body.height ? Number(req.body.height) : user.height,
+      glucoseProfile: req.body.glucoseProfile || user.glucoseProfile,
     },
   });
 
