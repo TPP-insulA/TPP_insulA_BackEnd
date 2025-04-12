@@ -19,6 +19,10 @@ model User {
   weight        Float
   height        Float
   glucoseProfile String    // 'hypo' | 'normal' | 'hyper'
+  profileImage  String?    // URL de la imagen de perfil
+  diabetesType  String    @default("type1") // Only Type 1 Diabetes
+  diagnosisDate DateTime  @default(now())
+  treatingDoctor String?
   glucoseTarget GlucoseTarget?
   readings      GlucoseReading[]
   activities    Activity[]

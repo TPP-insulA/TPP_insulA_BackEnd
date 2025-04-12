@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../app';
 import { asyncHandler } from '../middleware/error.middleware';
 import { hashPassword, comparePassword, generateToken, excludePassword } from '../utils/auth.utils';
-import { RegisterUserInput, LoginInput } from '../models';
+import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageInput } from '../models';
 
 /**
  * @swagger
@@ -296,7 +296,18 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
 
   const userWithoutPassword = excludePassword(user);
 
-  res.json(userWithoutPassword);
+  // Format the response to match frontend expectations
+  res.json({
+    ...userWithoutPassword,
+    name: `${user.firstName} ${user.lastName}`,
+    email: user.email,
+    medicalInfo: {
+      diabetesType: "type1", // Always type1 for this app
+      diagnosisDate: user.diagnosisDate,
+      treatingDoctor: user.treatingDoctor || 'No asignado',
+    },
+    profileImage: user.profileImage || null,
+  });
 });
 
 /**
@@ -342,8 +353,13 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
  *         description: User not found
  */
 export const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  const updateData: UpdateProfileInput = req.body;
+
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
+    include: {
+      glucoseTarget: true,
+    },
   });
 
   if (!user) {
@@ -355,24 +371,38 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
   const updatedUser = await prisma.user.update({
     where: { id: req.user.id },
     data: {
-      firstName: req.body.firstName || user.firstName,
-      lastName: req.body.lastName || user.lastName,
-      email: req.body.email || user.email,
-      password: req.body.password ? await hashPassword(req.body.password) : user.password,
-      birthDay: req.body.birthDay ? Number(req.body.birthDay) : user.birthDay,
-      birthMonth: req.body.birthMonth ? Number(req.body.birthMonth) : user.birthMonth,
-      birthYear: req.body.birthYear ? Number(req.body.birthYear) : user.birthYear,
-      weight: req.body.weight ? Number(req.body.weight) : user.weight,
-      height: req.body.height ? Number(req.body.height) : user.height,
-      glucoseProfile: req.body.glucoseProfile || user.glucoseProfile,
+      ...(updateData.firstName && { firstName: updateData.firstName }),
+      ...(updateData.lastName && { lastName: updateData.lastName }),
+      ...(updateData.email && { email: updateData.email }),
+      ...(updateData.password && { password: await hashPassword(updateData.password) }),
+      ...(updateData.birthDay && { birthDay: updateData.birthDay }),
+      ...(updateData.birthMonth && { birthMonth: updateData.birthMonth }),
+      ...(updateData.birthYear && { birthYear: updateData.birthYear }),
+      ...(updateData.weight && { weight: updateData.weight }),
+      ...(updateData.height && { height: updateData.height }),
+      ...(updateData.glucoseProfile && { glucoseProfile: updateData.glucoseProfile }),
+      ...(updateData.profileImage && { profileImage: updateData.profileImage }),
+      ...(updateData.treatingDoctor !== undefined && { treatingDoctor: updateData.treatingDoctor }),
+      ...(updateData.diagnosisDate && { diagnosisDate: updateData.diagnosisDate }),
+    },
+    include: {
+      glucoseTarget: true,
     },
   });
 
   const userWithoutPassword = excludePassword(updatedUser);
 
+  // Format the response to match frontend expectations
   res.json({
     ...userWithoutPassword,
-    token: generateToken(updatedUser.id),
+    name: `${updatedUser.firstName} ${updatedUser.lastName}`,
+    email: updatedUser.email,
+    medicalInfo: {
+      diabetesType: "type1", // Always type1 for this app
+      diagnosisDate: updatedUser.diagnosisDate,
+      treatingDoctor: updatedUser.treatingDoctor || 'No asignado',
+    },
+    profileImage: updatedUser.profileImage || null,
   });
 });
 
@@ -455,4 +485,51 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   ]);
 
   res.json({ message: 'User deleted' });
+});
+
+/**
+ * @swagger
+ * /api/users/profile/image:
+ *   put:
+ *     summary: Update user profile image
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - imageUrl
+ *             properties:
+ *               imageUrl:
+ *                 type: string
+ *                 description: URL of the uploaded profile image
+ *     responses:
+ *       200:
+ *         description: Profile image updated successfully
+ *       404:
+ *         description: User not found
+ */
+export const updateProfileImage = asyncHandler(async (req: Request, res: Response) => {
+  const { imageUrl } = req.body as UpdateProfileImageInput;
+
+  if (!imageUrl) {
+    res.status(400);
+    throw new Error('Image URL is required');
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: req.user.id },
+    data: {
+      profileImage: imageUrl
+    },
+  });
+
+  res.json({ 
+    success: true, 
+    profileImage: updatedUser.profileImage 
+  });
 });
