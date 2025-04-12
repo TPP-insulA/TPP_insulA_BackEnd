@@ -52,7 +52,8 @@ export const protect = async (
         where: { id: decoded.id },
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
           email: true,
           createdAt: true,
           updatedAt: true
@@ -63,8 +64,11 @@ export const protect = async (
         throw new Error('User not found');
       }
 
-      // Set user in request object
-      req.user = user;
+      // Set user in request object with combined name
+      req.user = {
+        ...user,
+        name: `${user.firstName} ${user.lastName}`,
+      };
 
       next();
     } catch (error) {
