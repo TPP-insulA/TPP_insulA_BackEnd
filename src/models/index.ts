@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-import path from 'path';
+// Type definitions for the application
+import { prisma } from '../app';
 
 // Definición de tipos basados en el esquema de Prisma
 export type User = {
@@ -14,6 +14,10 @@ export type User = {
   weight: number;
   height: number;
   glucoseProfile: string;
+  profileImage?: string | null;
+  diabetesType: string;
+  diagnosisDate: Date;
+  treatingDoctor?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -110,11 +114,26 @@ export interface CreateInsulinDoseInput {
   carbIntake?: number;
 }
 
-// Exportar instancia de PrismaClient para usar en la aplicación
-export const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL
-    }
-  }
-});
+// Profile types
+export interface UpdateProfileInput {
+  email?: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  birthDay?: number;
+  birthMonth?: number;
+  birthYear?: number;
+  weight?: number;
+  height?: number;
+  glucoseProfile?: string;
+  profileImage?: string;
+  treatingDoctor?: string;
+  diagnosisDate?: Date;
+}
+
+export interface UpdateProfileImageInput {
+  imageUrl: string;
+}
+
+// Re-export prisma instance from app.ts
+export { prisma };
