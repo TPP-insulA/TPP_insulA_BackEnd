@@ -112,12 +112,9 @@ export interface CreateInsulinDoseInput {
 
 // Exportar instancia de PrismaClient para usar en la aplicación
 export const prisma = new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
-  // Explicitly specify the path to the schema.prisma file
-  __internal: {
-    engine: {
-      binaryPath: path.join(__dirname, '../../node_modules/.prisma/client/query-engine-windows.exe'),
-      schemaPath: path.join(__dirname, '../../prisma/schema.prisma')
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
     }
   }
 });

@@ -5,9 +5,79 @@ import { hashPassword, comparePassword, generateToken, excludePassword } from '.
 import { RegisterUserInput, LoginInput } from '../models';
 
 /**
- * Register a new user
- * @route POST /api/users/register
- * @access Public
+ * @swagger
+ * /api/users/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - firstName
+ *               - lastName
+ *               - birthDay
+ *               - birthMonth
+ *               - birthYear
+ *               - weight
+ *               - height
+ *               - glucoseProfile
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               birthDay:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 31
+ *               birthMonth:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 12
+ *               birthYear:
+ *                 type: integer
+ *                 minimum: 1900
+ *               weight:
+ *                 type: number
+ *                 description: Weight in kilograms
+ *               height:
+ *                 type: number
+ *                 description: Height in centimeters
+ *               glucoseProfile:
+ *                 type: string
+ *                 enum: [hypo, normal, hyper]
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 firstName:
+ *                   type: string
+ *                 lastName:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *       400:
+ *         description: User already exists or invalid data
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const { 
@@ -94,9 +164,47 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
 });
 
 /**
- * Login user
- * @route POST /api/users/login
- * @access Public
+ * @swagger
+ * /api/users/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 firstName:
+ *                   type: string
+ *                 lastName:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *       401:
+ *         description: Invalid credentials
  */
 export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const { email, password }: LoginInput = req.body;
@@ -128,9 +236,50 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 /**
- * Get user profile
- * @route GET /api/users/profile
- * @access Private
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: Get user profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 firstName:
+ *                   type: string
+ *                 lastName:
+ *                   type: string
+ *                 birthDay:
+ *                   type: integer
+ *                 birthMonth:
+ *                   type: integer
+ *                 birthYear:
+ *                   type: integer
+ *                 weight:
+ *                   type: number
+ *                 height:
+ *                   type: number
+ *                 glucoseProfile:
+ *                   type: string
+ *                 glucoseTarget:
+ *                   type: object
+ *                   properties:
+ *                     minTarget:
+ *                       type: number
+ *                     maxTarget:
+ *                       type: number
+ *       404:
+ *         description: User not found
  */
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
@@ -151,9 +300,46 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
 });
 
 /**
- * Update user profile
- * @route PUT /api/users/profile
- * @access Private
+ * @swagger
+ * /api/users/profile:
+ *   put:
+ *     summary: Update user profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               birthDay:
+ *                 type: integer
+ *               birthMonth:
+ *                 type: integer
+ *               birthYear:
+ *                 type: integer
+ *               weight:
+ *                 type: number
+ *               height:
+ *                 type: number
+ *               glucoseProfile:
+ *                 type: string
+ *                 enum: [hypo, normal, hyper]
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       404:
+ *         description: User not found
  */
 export const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
@@ -191,9 +377,32 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
 });
 
 /**
- * Update user glucose target
- * @route PUT /api/users/glucose-target
- * @access Private
+ * @swagger
+ * /api/users/glucose-target:
+ *   put:
+ *     summary: Update user glucose target
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - minTarget
+ *               - maxTarget
+ *             properties:
+ *               minTarget:
+ *                 type: number
+ *               maxTarget:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Glucose target updated successfully
+ *       400:
+ *         description: Invalid target values
  */
 export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Response) => {
   const { minTarget, maxTarget } = req.body;
@@ -222,9 +431,18 @@ export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Respon
 });
 
 /**
- * Delete user account
- * @route DELETE /api/users
- * @access Private
+ * @swagger
+ * /api/users:
+ *   delete:
+ *     summary: Delete user account
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       404:
+ *         description: User not found
  */
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   // Delete all related data

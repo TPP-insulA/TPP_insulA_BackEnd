@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
+import { specs, swaggerUi } from './config/swagger';
 
 // Routes
 import userRoutes from './routes/user.routes';
@@ -29,6 +30,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
 app.use(morgan('dev'));
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // Routes
 app.use('/api/users', userRoutes);
