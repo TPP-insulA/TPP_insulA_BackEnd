@@ -80,6 +80,7 @@ import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageIn
  *         description: User already exists or invalid data
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body.data ?? req.body; // Handle both cases where data is wrapped in a "data" object or not
   const { 
     email, 
     password, 
@@ -91,7 +92,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     weight, 
     height,
     glucoseProfile 
-  }: RegisterUserInput = req.body;
+  }: RegisterUserInput = body;
 
   // Check if user exists
   const userExists = await prisma.user.findUnique({
