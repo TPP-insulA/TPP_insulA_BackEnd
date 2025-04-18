@@ -10,7 +10,8 @@
     "copy-prisma-files": "copyfiles -u 1 prisma/**/* dist/",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate && prisma migrate deploy"
   },
   "repository": {
     "type": "git",
