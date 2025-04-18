@@ -4,6 +4,11 @@ import { asyncHandler } from '../middleware/error.middleware';
 import { hashPassword, comparePassword, generateToken, excludePassword } from '../utils/auth.utils';
 import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageInput } from '../models';
 
+interface PrismaError extends Error {
+  code?: string;
+  meta?: unknown;
+}
+
 /**
  * @swagger
  * /api/users/register:
@@ -81,7 +86,8 @@ import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageIn
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
   try {
-    console.log('Registration attempt with body:', JSON.stringify(req.body, null, 2));
+    console.log('[registerUser] Starting registration process');
+    console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
     
     const { 
       email, 
@@ -110,7 +116,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     if (!glucoseProfile) validationErrors.push('glucoseProfile is required');
 
     if (validationErrors.length > 0) {
-      console.error('Validation errors:', validationErrors);
+      console.error('[registerUser] Validation errors:', validationErrors);
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -124,6 +130,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     });
 
     if (userExists) {
+      console.log('[registerUser] User already exists:', email);
       return res.status(400).json({
         success: false,
         message: 'User already exists'
@@ -133,7 +140,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    console.log('Creating user with data:', {
+    console.log('[registerUser] Creating user with data:', {
       email,
       firstName,
       lastName,
@@ -151,68 +158,76 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       firstName: String(firstName),
       lastName: String(lastName),
       password: hashedPassword,
-      birthDay: Number(birthDay),
-      birthMonth: Number(birthMonth),
-      birthYear: Number(birthYear),
-      weight: Number(weight),
-      height: Number(height),
+      birthDay: parseInt(String(birthDay)),
+      birthMonth: parseInt(String(birthMonth)),
+      birthYear: parseInt(String(birthYear)),
+      weight: parseFloat(String(weight)),
+      height: parseFloat(String(height)),
       glucoseProfile: String(glucoseProfile),
       diabetesType: "type1"
     };
 
-    const user = await prisma.user.create({
-      data: userData
-    });
+    try {
+      const user = await prisma.user.create({
+        data: userData
+      });
 
-    console.log('User created successfully:', user.id);
+      console.log('[registerUser] User created successfully:', user.id);
 
-    // Set glucose target values
-    let minTarget = 70;
-    let maxTarget = 180;
-    
-    switch (glucoseProfile) {
-      case 'hypo':
-        minTarget = 80;
-        maxTarget = 160;
-        break;
-      case 'hyper':
-        minTarget = 100;
-        maxTarget = 200;
-        break;
-      // normal uses default values
-    }
-
-    // Create glucose target
-    await prisma.glucoseTarget.create({
-      data: {
-        minTarget,
-        maxTarget,
-        userId: user.id,
-      },
-    });
-
-    console.log('Glucose target created for user:', user.id);
-
-    const userWithoutPassword = excludePassword(user);
-    
-    return res.status(201).json({
-      success: true,
-      data: {
-        ...userWithoutPassword,
-        token: generateToken(user.id)
+      // Set glucose target values
+      let minTarget = 70;
+      let maxTarget = 180;
+      
+      switch (glucoseProfile) {
+        case 'hypo':
+          minTarget = 80;
+          maxTarget = 160;
+          break;
+        case 'hyper':
+          minTarget = 100;
+          maxTarget = 200;
+          break;
+        // normal uses default values
       }
-    });
 
-  } catch (error) {
-    console.error('Registration error:', error);
-    // Check if it's a Prisma error
-    if (error.code) {
-      console.error('Prisma error code:', error.code);
+      // Create glucose target
+      await prisma.glucoseTarget.create({
+        data: {
+          minTarget,
+          maxTarget,
+          userId: user.id,
+        },
+      });
+
+      console.log('[registerUser] Glucose target created for user:', user.id);
+
+      const userWithoutPassword = excludePassword(user);
+      
+      return res.status(201).json({
+        success: true,
+        data: {
+          ...userWithoutPassword,
+          token: generateToken(user.id)
+        }
+      });
+    } catch (dbError) {
+      console.error('[registerUser] Database error:', dbError);
+      throw new Error('Error creating user in database');
     }
+
+  } catch (error: unknown) {
+    console.error('[registerUser] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: error instanceof Error && 'code' in error ? (error as PrismaError).code : undefined,
+      meta: error instanceof Error && 'meta' in error ? (error as PrismaError).meta : undefined,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     return res.status(500).json({
       success: false,
       message: 'Error registering user',
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
     });
   }
 });

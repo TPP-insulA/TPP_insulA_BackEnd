@@ -21,7 +21,9 @@ dotenv.config();
 const app: Express = express();
 
 // Initialize PrismaClient
-export const prisma = new PrismaClient();
+export const prisma = new PrismaClient({
+  log: ['query', 'error', 'warn']
+});
 
 // Middleware
 // Configure body parsing before routes
@@ -41,8 +43,10 @@ app.use(morgan('dev'));
 
 // Add request logging middleware
 app.use((req: Request, res: Response, next) => {
-  console.log('Request Body:', JSON.stringify(req.body, null, 2));
+  console.log('Request URL:', req.url);
+  console.log('Request Method:', req.method);
   console.log('Request Headers:', req.headers);
+  if (req.body) console.log('Request Body:', JSON.stringify(req.body, null, 2));
   next();
 });
 
@@ -64,24 +68,28 @@ app.get('/health', (req: Request, res: Response) => {
 app.use(notFound);
 app.use(errorHandler);
 
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
 
 // Start server
 if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`⚡️[server]: Server is running on port ${port}`);
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Database connection established');
   });
+
+  // Handle graceful shutdown
+  const shutdown = async () => {
+    console.log('Shutting down gracefully...');
+    await prisma.$disconnect();
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
 
 export default app;
