@@ -80,7 +80,12 @@ import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageIn
  *         description: User already exists or invalid data
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  const body = req.body.data ?? req.body; // Handle both cases where data is wrapped in a "data" object or not
+  console.log('[registerUser] Request body:', JSON.stringify(req.body, null, 2));
+  console.log('Request body:', req.body); // Log the entire body
+  console.log('Request body.data:', req.body.data); // Log the data property
+  const body = req.body.data ?? req.body;
+  console.log('Selected body:', body); // Log what body is used
+
   const { 
     email, 
     password, 
@@ -104,6 +109,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     throw new Error('User already exists');
   }
 
+  console.log('[registerUser] Creating new user with email:', email);
   // Hash password
   const hashedPassword = await hashPassword(password);
 
@@ -124,6 +130,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
   });
 
   if (user) {
+    console.log('[registerUser] User created successfully:', user.id);
     // Set glucose target values based on profile
     let minTarget = 70;
     let maxTarget = 180;
@@ -152,6 +159,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       },
     });
 
+    console.log('[registerUser] Glucose target created for user:', user.id);
     const userWithoutPassword = excludePassword(user);
 
     res.status(201).json({
@@ -159,6 +167,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       token: generateToken(user.id),
     });
   } else {
+    console.error('[registerUser] Failed to create user');
     res.status(400);
     throw new Error('Invalid user data');
   }
@@ -208,6 +217,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
  *         description: Invalid credentials
  */
 export const loginUser = asyncHandler(async (req: Request, res: Response) => {
+  console.log('[loginUser] Attempt login for email:', req.body.email);
   const { email, password }: LoginInput = req.body;
 
   // Check if user exists
@@ -216,18 +226,22 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (!user) {
+    console.log('[loginUser] User not found:', req.body.email);
     res.status(401);
     throw new Error('Invalid credentials');
   }
 
   // Check if password matches
   const isMatch = await comparePassword(password, user.password);
+  console.log('[loginUser] Password match result:', isMatch);
 
   if (!isMatch) {
+    console.log('[loginUser] Invalid password for user:', req.body.email);
     res.status(401);
     throw new Error('Invalid credentials');
   }
 
+  console.log('[loginUser] Login successful for user:', user.id);
   const userWithoutPassword = excludePassword(user);
 
   res.json({
@@ -283,6 +297,7 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
  *         description: User not found
  */
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  console.log('[getUserProfile] Fetching profile for user:', req.user.id);
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
     include: {
@@ -291,10 +306,12 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
   });
 
   if (!user) {
+    console.log('[getUserProfile] User not found:', req.user.id);
     res.status(404);
     throw new Error('User not found');
   }
 
+  console.log('[getUserProfile] Profile fetched successfully for user:', req.user.id);
   const userWithoutPassword = excludePassword(user);
 
   // Format the response to match frontend expectations
@@ -354,6 +371,8 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
  *         description: User not found
  */
 export const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  console.log('[updateUserProfile] Update request for user:', req.user.id);
+  console.log('[updateUserProfile] Update data:', JSON.stringify(req.body, null, 2));
   const updateData: UpdateProfileInput = req.body;
 
   const user = await prisma.user.findUnique({
@@ -364,10 +383,12 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
   });
 
   if (!user) {
+    console.log('[updateUserProfile] User not found:', req.user.id);
     res.status(404);
     throw new Error('User not found');
   }
 
+  console.log('[updateUserProfile] Updating user:', req.user.id);
   // Update user fields
   const updatedUser = await prisma.user.update({
     where: { id: req.user.id },
@@ -391,6 +412,7 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
     },
   });
 
+  console.log('[updateUserProfile] User updated successfully:', req.user.id);
   const userWithoutPassword = excludePassword(updatedUser);
 
   // Format the response to match frontend expectations
@@ -436,9 +458,12 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
  *         description: Invalid target values
  */
 export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Response) => {
+  console.log('[updateGlucoseTarget] Update request for user:', req.user.id);
+  console.log('[updateGlucoseTarget] Target values:', JSON.stringify(req.body, null, 2));
   const { minTarget, maxTarget } = req.body;
 
   if (minTarget >= maxTarget) {
+    console.log('[updateGlucoseTarget] Invalid target values:', { minTarget, maxTarget });
     res.status(400);
     throw new Error('Min target must be less than max target');
   }
@@ -458,6 +483,7 @@ export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Respon
     },
   });
 
+  console.log('[updateGlucoseTarget] Target updated successfully for user:', req.user.id);
   res.json(target);
 });
 
@@ -476,16 +502,22 @@ export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Respon
  *         description: User not found
  */
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
-  // Delete all related data
-  await prisma.$transaction([
-    prisma.glucoseTarget.deleteMany({ where: { userId: req.user.id } }),
-    prisma.glucoseReading.deleteMany({ where: { userId: req.user.id } }),
-    prisma.activity.deleteMany({ where: { userId: req.user.id } }),
-    prisma.insulinDose.deleteMany({ where: { userId: req.user.id } }),
-    prisma.user.delete({ where: { id: req.user.id } }),
-  ]);
-
-  res.json({ message: 'User deleted' });
+  console.log('[deleteUser] Delete request for user:', req.user.id);
+  
+  try {
+    await prisma.$transaction([
+      prisma.glucoseTarget.deleteMany({ where: { userId: req.user.id } }),
+      prisma.glucoseReading.deleteMany({ where: { userId: req.user.id } }),
+      prisma.activity.deleteMany({ where: { userId: req.user.id } }),
+      prisma.insulinDose.deleteMany({ where: { userId: req.user.id } }),
+      prisma.user.delete({ where: { id: req.user.id } }),
+    ]);
+    console.log('[deleteUser] User and related data deleted successfully:', req.user.id);
+    res.json({ message: 'User deleted' });
+  } catch (error) {
+    console.error('[deleteUser] Error deleting user:', error);
+    throw error;
+  }
 });
 
 /**
@@ -515,9 +547,12 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
  *         description: User not found
  */
 export const updateProfileImage = asyncHandler(async (req: Request, res: Response) => {
+  console.log('[updateProfileImage] Update request for user:', req.user.id);
+  console.log('[updateProfileImage] Image URL:', req.body.imageUrl);
   const { imageUrl } = req.body as UpdateProfileImageInput;
 
   if (!imageUrl) {
+    console.log('[updateProfileImage] No image URL provided');
     res.status(400);
     throw new Error('Image URL is required');
   }
@@ -529,6 +564,7 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
     },
   });
 
+  console.log('[updateProfileImage] Profile image updated successfully for user:', req.user.id);
   res.json({ 
     success: true, 
     profileImage: updatedUser.profileImage 
