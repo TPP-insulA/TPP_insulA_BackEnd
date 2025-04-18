@@ -1,16 +1,25 @@
 declare module 'clarifai' {
-  export class App {
+  export class Clarifai {
     constructor(options: { apiKey: string });
-    models: {
-      predict: (modelId: string, input: { url?: string; base64?: string }) => Promise<PredictResponse>;
-    };
+    
+    predict: (options: {
+      modelUrl: string;
+      inputs: Array<{
+        data: {
+          image: {
+            url?: string;
+            base64?: string;
+          }
+        }
+      }>
+    }) => Promise<PredictResponse>;
   }
 
   interface Concept {
     id: string;
     name: string;
     value: number;
-    app_id: string;
+    app_id?: string;
   }
 
   interface Region {
@@ -30,35 +39,18 @@ declare module 'clarifai' {
 
   interface Output {
     id: string;
-    status: {
+    status?: {
       code: number;
       description: string;
     };
-    created_at: string;
-    model: {
+    created_at?: string;
+    model?: {
       id: string;
       name: string;
-      created_at: string;
-      app_id: string;
-      output_info: {
-        output_config: {
-          concepts_mutually_exclusive: boolean;
-          closed_environment: boolean;
-        };
-        message: string;
-        type: string;
-        type_ext: string;
-      };
-      model_version: {
-        id: string;
-        created_at: string;
-        status: {
-          code: number;
-          description: string;
-        };
-      };
+      created_at?: string;
+      app_id?: string;
     };
-    input: {
+    input?: {
       id: string;
       data: {
         image: {
@@ -73,13 +65,20 @@ declare module 'clarifai' {
   }
 
   interface PredictResponse {
-    id: string;
-    status: {
+    status?: {
       code: number;
       description: string;
     };
     outputs: Output[];
   }
 
-  export default { App };
+  // Legacy support for older client
+  export class App {
+    constructor(options: { apiKey: string });
+    models: {
+      predict: (modelId: string, input: { url?: string; base64?: string }) => Promise<PredictResponse>;
+    };
+  }
+
+  export default { Clarifai, App };
 }
