@@ -15,7 +15,7 @@ const options = {
         description: 'Development server',
       },
       {
-        url: 'https://tppinsulabackend-production.up.railway.app/api',
+        url: 'https://tppinsulabackend-production.up.railway.app',
         description: 'Production server',
       }
     ],
@@ -29,9 +29,17 @@ const options = {
       },
     },
   },
-  apis: ['./src/controllers/*.ts', './src/routes/*.ts', './src/models/*.ts'],
+  apis: ['./src/routes/*.ts', './src/controllers/*.ts', './src/models/*.ts'],
 };
 
 const specs = swaggerJsdoc(options);
 
-export { specs, swaggerUi };
+const swaggerUiOptions = {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'InsuLA API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+  },
+};
+
+export { specs, swaggerUi, swaggerUiOptions };

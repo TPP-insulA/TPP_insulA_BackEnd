@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
-import { specs, swaggerUi } from './config/swagger';
+import { specs, swaggerUi, swaggerUiOptions } from './config/swagger';
 import http from 'http'; // Add this import for ServerResponse
 
 // Routes
@@ -53,7 +53,14 @@ app.use(cors({
   maxAge: 86400, // 24 hours
 }));
 
-app.use(helmet());
+// Configure Helmet with less restrictive settings for Swagger UI
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  })
+);
+
 app.use(morgan('dev'));
 
 // Add detailed request logging middleware
@@ -76,8 +83,9 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/insulin', insulinRoutes);
 app.use('/api/food', foodRoutes); 
 
-// Swagger Documentation
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs));
+// Serve Swagger UI at /api/docs
+app.use('/api/docs', swaggerUi.serve);
+app.get('/api/docs', swaggerUi.setup(specs, swaggerUiOptions));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
