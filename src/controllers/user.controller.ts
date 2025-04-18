@@ -80,9 +80,9 @@ import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageIn
  *         description: User already exists or invalid data
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
-
   try {
+    console.log('Registration attempt with body:', JSON.stringify(req.body, null, 2));
+    
     const { 
       email, 
       password, 
@@ -96,24 +96,25 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       glucoseProfile 
     } = req.body;
 
-    // Validate required fields
-    const missingFields = [];
-    if (!email) missingFields.push('email');
-    if (!password) missingFields.push('password');
-    if (!firstName) missingFields.push('firstName');
-    if (!lastName) missingFields.push('lastName');
-    if (!birthDay) missingFields.push('birthDay');
-    if (!birthMonth) missingFields.push('birthMonth');
-    if (!birthYear) missingFields.push('birthYear');
-    if (!weight) missingFields.push('weight');
-    if (!height) missingFields.push('height');
-    if (!glucoseProfile) missingFields.push('glucoseProfile');
+    // Enhanced validation with detailed error messages
+    const validationErrors = [];
+    if (!email) validationErrors.push('email is required');
+    if (!password) validationErrors.push('password is required');
+    if (!firstName) validationErrors.push('firstName is required');
+    if (!lastName) validationErrors.push('lastName is required');
+    if (!birthDay) validationErrors.push('birthDay is required');
+    if (!birthMonth) validationErrors.push('birthMonth is required');
+    if (!birthYear) validationErrors.push('birthYear is required');
+    if (!weight) validationErrors.push('weight is required');
+    if (!height) validationErrors.push('height is required');
+    if (!glucoseProfile) validationErrors.push('glucoseProfile is required');
 
-    if (missingFields.length > 0) {
-      console.log('[registerUser] Missing required fields:', missingFields);
+    if (validationErrors.length > 0) {
+      console.error('Validation errors:', validationErrors);
       return res.status(400).json({
         success: false,
-        message: `Missing required fields: ${missingFields.join(', ')}`
+        message: 'Validation failed',
+        errors: validationErrors
       });
     }
 
@@ -123,39 +124,49 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     });
 
     if (userExists) {
-      console.log('[registerUser] User already exists:', email);
       return res.status(400).json({
         success: false,
         message: 'User already exists'
       });
     }
 
-    console.log('[registerUser] Creating new user with email:', email);
-
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user with explicit type conversion
-    const user = await prisma.user.create({
-      data: {
-        email,
-        firstName,
-        lastName,
-        password: hashedPassword,
-        birthDay: parseInt(birthDay.toString()),
-        birthMonth: parseInt(birthMonth.toString()),
-        birthYear: parseInt(birthYear.toString()),
-        weight: parseFloat(weight.toString()),
-        height: parseFloat(height.toString()),
-        glucoseProfile,
-        diabetesType: "type1", // Always type1 for this app
-        diagnosisDate: new Date(),
-      },
+    console.log('Creating user with data:', {
+      email,
+      firstName,
+      lastName,
+      birthDay,
+      birthMonth,
+      birthYear,
+      weight,
+      height,
+      glucoseProfile
     });
 
-    console.log('[registerUser] User created successfully:', user.id);
+    // Create user with explicit data validation
+    const userData = {
+      email: String(email),
+      firstName: String(firstName),
+      lastName: String(lastName),
+      password: hashedPassword,
+      birthDay: Number(birthDay),
+      birthMonth: Number(birthMonth),
+      birthYear: Number(birthYear),
+      weight: Number(weight),
+      height: Number(height),
+      glucoseProfile: String(glucoseProfile),
+      diabetesType: "type1"
+    };
 
-    // Set glucose target values based on profile
+    const user = await prisma.user.create({
+      data: userData
+    });
+
+    console.log('User created successfully:', user.id);
+
+    // Set glucose target values
     let minTarget = 70;
     let maxTarget = 180;
     
@@ -168,9 +179,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
         minTarget = 100;
         maxTarget = 200;
         break;
-      case 'normal':
-      default:
-        break;
+      // normal uses default values
     }
 
     // Create glucose target
@@ -182,23 +191,28 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       },
     });
 
-    console.log('[registerUser] Glucose target created for user:', user.id);
+    console.log('Glucose target created for user:', user.id);
 
     const userWithoutPassword = excludePassword(user);
+    
     return res.status(201).json({
       success: true,
       data: {
         ...userWithoutPassword,
-        token: generateToken(user.id),
+        token: generateToken(user.id)
       }
     });
 
   } catch (error) {
-    console.error('[registerUser] Error details:', error);
+    console.error('Registration error:', error);
+    // Check if it's a Prisma error
+    if (error.code) {
+      console.error('Prisma error code:', error.code);
+    }
     return res.status(500).json({
       success: false,
-      message: 'Error creating user',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Error registering user',
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     });
   }
 });
