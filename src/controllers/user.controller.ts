@@ -80,11 +80,7 @@ import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageIn
  *         description: User already exists or invalid data
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  console.log('[registerUser] Request body:', JSON.stringify(req.body, null, 2));
-  console.log('Request body:', req.body); // Log the entire body
-  console.log('Request body.data:', req.body.data); // Log the data property
-  const body = req.body.data ?? req.body;
-  console.log('Selected body:', body); // Log what body is used
+  console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
 
   const { 
     email, 
@@ -97,7 +93,26 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     weight, 
     height,
     glucoseProfile 
-  }: RegisterUserInput = body;
+  } = req.body;
+
+  // Validate required fields
+  if (!email || !password || !firstName || !lastName || !birthDay || 
+      !birthMonth || !birthYear || !weight || !height || !glucoseProfile) {
+    console.log('[registerUser] Missing required fields:', {
+      email: !email,
+      password: !password,
+      firstName: !firstName,
+      lastName: !lastName,
+      birthDay: !birthDay,
+      birthMonth: !birthMonth,
+      birthYear: !birthYear,
+      weight: !weight,
+      height: !height,
+      glucoseProfile: !glucoseProfile
+    });
+    res.status(400);
+    throw new Error('All fields are required');
+  }
 
   // Check if user exists
   const userExists = await prisma.user.findUnique({
@@ -105,48 +120,50 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
   });
 
   if (userExists) {
+    console.log('[registerUser] User already exists:', email);
     res.status(400);
     throw new Error('User already exists');
   }
 
   console.log('[registerUser] Creating new user with email:', email);
-  // Hash password
-  const hashedPassword = await hashPassword(password);
+  
+  try {
+    // Hash password
+    const hashedPassword = await hashPassword(password);
 
-  // Create user
-  const user = await prisma.user.create({
-    data: {
-      email,
-      firstName,
-      lastName,
-      password: hashedPassword,
-      birthDay: Number(birthDay),
-      birthMonth: Number(birthMonth),
-      birthYear: Number(birthYear),
-      weight: Number(weight),
-      height: Number(height),
-      glucoseProfile,
-    },
-  });
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        email,
+        firstName,
+        lastName,
+        password: hashedPassword,
+        birthDay: Number(birthDay),
+        birthMonth: Number(birthMonth),
+        birthYear: Number(birthYear),
+        weight: Number(weight),
+        height: Number(height),
+        glucoseProfile,
+      },
+    });
 
-  if (user) {
     console.log('[registerUser] User created successfully:', user.id);
+
     // Set glucose target values based on profile
     let minTarget = 70;
     let maxTarget = 180;
     
     switch (glucoseProfile) {
       case 'hypo':
-        minTarget = 80; // Higher minimum for hypoglycemia-prone users
-        maxTarget = 160; // Lower maximum for better control
+        minTarget = 80;
+        maxTarget = 160;
         break;
       case 'hyper':
-        minTarget = 100; // Higher minimum to avoid overcorrection
-        maxTarget = 200; // Higher maximum for hyperglycemia-prone users
+        minTarget = 100;
+        maxTarget = 200;
         break;
       case 'normal':
       default:
-        // Use default values
         break;
     }
 
@@ -160,16 +177,19 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     });
 
     console.log('[registerUser] Glucose target created for user:', user.id);
+    
     const userWithoutPassword = excludePassword(user);
-
     res.status(201).json({
-      ...userWithoutPassword,
-      token: generateToken(user.id),
+      success: true,
+      data: {
+        ...userWithoutPassword,
+        token: generateToken(user.id),
+      }
     });
-  } else {
-    console.error('[registerUser] Failed to create user');
+  } catch (error) {
+    console.error('[registerUser] Error creating user:', error);
     res.status(400);
-    throw new Error('Invalid user data');
+    throw error;
   }
 });
 
