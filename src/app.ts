@@ -13,6 +13,7 @@ import userRoutes from './routes/user.routes';
 import glucoseRoutes from './routes/glucose.routes';
 import activityRoutes from './routes/activity.routes';
 import insulinRoutes from './routes/insulin.routes';
+import foodRoutes from './routes/food.routes'; 
 
 // Middleware
 import { errorHandler, notFound } from './middleware/error.middleware';
@@ -73,6 +74,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/glucose', glucoseRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/insulin', insulinRoutes);
+app.use('/api/food', foodRoutes); 
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
