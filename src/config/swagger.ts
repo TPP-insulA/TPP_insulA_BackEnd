@@ -14,6 +14,10 @@ const options = {
         url: 'http://localhost:3000',
         description: 'Development server',
       },
+      {
+        url: 'https://tppinsulabackend-production.up.railway.app/api',
+        description: 'Production server',
+      }
     ],
     components: {
       securitySchemes: {

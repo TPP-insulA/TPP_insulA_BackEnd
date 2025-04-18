@@ -77,7 +77,7 @@ app.use('/api/insulin', insulinRoutes);
 app.use('/api/food', foodRoutes); 
 
 // Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
