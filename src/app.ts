@@ -84,9 +84,8 @@ app.use('/api/insulin', insulinRoutes);
 app.use('/api/food', foodRoutes); 
 
 // Serve Swagger UI at /api/docs
-app.use('/api/docs', swaggerUi.serve);
-app.get('/api/docs', swaggerUi.setup(specs, swaggerUiOptions));
-
+// app.use('/api/docs', swaggerUi.serve);
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerUiOptions));
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
