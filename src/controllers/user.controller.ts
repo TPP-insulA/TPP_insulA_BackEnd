@@ -89,6 +89,15 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     console.log('[registerUser] Starting registration process');
     console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
     
+    // Additional request body validation
+    if (!req.body || Object.keys(req.body).length === 0) {
+      console.error('[registerUser] Empty request body or parsing error');
+      return res.status(400).json({
+        success: false,
+        message: 'Empty request body or JSON parsing error. Please check your request format.'
+      });
+    }
+    
     const { 
       email, 
       password, 

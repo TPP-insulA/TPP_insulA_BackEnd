@@ -27,26 +27,44 @@ export const prisma = new PrismaClient({
 
 // Middleware
 // Configure body parsing before routes
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase the size limit for JSON payloads and ensure proper parsing
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf.toString());
+    } catch (e) {
+      console.error('Invalid JSON input:', e);
+      res.status(400).json({ success: false, message: 'Invalid JSON payload' });
+      throw new Error('Invalid JSON');
+    }
+  }
+}));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configure CORS
+// Configure CORS with more permissive settings for development/production
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
 }));
 
 app.use(helmet());
 app.use(morgan('dev'));
 
-// Add request logging middleware
+// Add detailed request logging middleware
 app.use((req: Request, res: Response, next) => {
   console.log('Request URL:', req.url);
   console.log('Request Method:', req.method);
   console.log('Request Headers:', req.headers);
-  if (req.body) console.log('Request Body:', JSON.stringify(req.body, null, 2));
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Request Body:', JSON.stringify(req.body, null, 2));
+  } else {
+    console.log('Request Body: Empty or not parsed');
+  }
   next();
 });
 
