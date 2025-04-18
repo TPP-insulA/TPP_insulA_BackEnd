@@ -33,7 +33,8 @@ const protect = (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
                 where: { id: decoded.id },
                 select: {
                     id: true,
-                    name: true,
+                    firstName: true,
+                    lastName: true,
                     email: true,
                     createdAt: true,
                     updatedAt: true
@@ -42,8 +43,8 @@ const protect = (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
             if (!user) {
                 throw new Error('User not found');
             }
-            // Set user in request object
-            req.user = user;
+            // Set user in request object with combined name
+            req.user = Object.assign(Object.assign({}, user), { name: `${user.firstName} ${user.lastName}` });
             next();
         }
         catch (error) {

@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { specs, swaggerUi } from './config/swagger';
+import http from 'http'; // Add this import for ServerResponse
 
 // Routes
 import userRoutes from './routes/user.routes';
@@ -22,23 +23,22 @@ const app: Express = express();
 
 // Initialize PrismaClient
 export const prisma = new PrismaClient({
-  log: ['query', 'error', 'warn']
+  log: ['query', 'error', 'warn'],
 });
 
 // Middleware
-// Configure body parsing before routes
-// Increase the size limit for JSON payloads and ensure proper parsing
-app.use(express.json({ 
+app.use(express.json({
   limit: '10mb',
-  verify: (req, res, buf) => {
+  verify: (req: http.IncomingMessage, res: http.ServerResponse, buf: Buffer) => {
     try {
       JSON.parse(buf.toString());
     } catch (e) {
       console.error('Invalid JSON input:', e);
-      res.status(400).json({ success: false, message: 'Invalid JSON payload' });
+      // Use Express Response type by casting or handling differently
+      (res as Response).status(400).json({ success: false, message: 'Invalid JSON payload' });
       throw new Error('Invalid JSON');
     }
-  }
+  },
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -49,7 +49,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   exposedHeaders: ['Content-Length', 'Content-Type'],
   credentials: true,
-  maxAge: 86400 // 24 hours
+  maxAge: 86400, // 24 hours
 }));
 
 app.use(helmet());

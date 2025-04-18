@@ -9,13 +9,49 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteGlucoseReading = exports.updateGlucoseReading = exports.createGlucoseReading = exports.getGlucoseReading = exports.getGlucoseReadings = void 0;
+exports.getGlucoseStats = exports.deleteGlucoseReading = exports.updateGlucoseReading = exports.createGlucoseReading = exports.getGlucoseReading = exports.getGlucoseReadings = void 0;
 const app_1 = require("../app");
 const error_middleware_1 = require("../middleware/error.middleware");
 /**
- * Get all glucose readings for the current user
- * @route GET /api/glucose
- * @access Private
+ * @swagger
+ * /api/glucose:
+ *   get:
+ *     summary: Get user's glucose readings
+ *     tags: [Glucose]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Start date for filtering readings
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: End date for filtering readings
+ *     responses:
+ *       200:
+ *         description: List of glucose readings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   value:
+ *                     type: number
+ *                   timestamp:
+ *                     type: string
+ *                     format: date-time
+ *                   notes:
+ *                     type: string
  */
 exports.getGlucoseReadings = (0, error_middleware_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { startDate, endDate, limit = 100 } = req.query;
@@ -59,9 +95,36 @@ exports.getGlucoseReading = (0, error_middleware_1.asyncHandler)((req, res) => _
     res.json(reading);
 }));
 /**
- * Create a new glucose reading
- * @route POST /api/glucose
- * @access Private
+ * @swagger
+ * /api/glucose:
+ *   post:
+ *     summary: Add a new glucose reading
+ *     tags: [Glucose]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - value
+ *               - timestamp
+ *             properties:
+ *               value:
+ *                 type: number
+ *                 description: Glucose reading value in mg/dL
+ *               timestamp:
+ *                 type: string
+ *                 format: date-time
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Glucose reading created successfully
+ *       400:
+ *         description: Invalid input data
  */
 exports.createGlucoseReading = (0, error_middleware_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { value, notes } = req.body;
@@ -96,9 +159,39 @@ exports.createGlucoseReading = (0, error_middleware_1.asyncHandler)((req, res) =
     res.status(201).json(Object.assign(Object.assign({}, reading), { status }));
 }));
 /**
- * Update a glucose reading
- * @route PUT /api/glucose/:id
- * @access Private
+ * @swagger
+ * /api/glucose/{id}:
+ *   put:
+ *     summary: Update a glucose reading
+ *     tags: [Glucose]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the glucose reading
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               value:
+ *                 type: number
+ *               timestamp:
+ *                 type: string
+ *                 format: date-time
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Glucose reading updated successfully
+ *       404:
+ *         description: Glucose reading not found
  */
 exports.updateGlucoseReading = (0, error_middleware_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
@@ -136,9 +229,25 @@ exports.updateGlucoseReading = (0, error_middleware_1.asyncHandler)((req, res) =
     res.json(updatedReading);
 }));
 /**
- * Delete a glucose reading
- * @route DELETE /api/glucose/:id
- * @access Private
+ * @swagger
+ * /api/glucose/{id}:
+ *   delete:
+ *     summary: Delete a glucose reading
+ *     tags: [Glucose]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the glucose reading
+ *     responses:
+ *       200:
+ *         description: Glucose reading deleted successfully
+ *       404:
+ *         description: Glucose reading not found
  */
 exports.deleteGlucoseReading = (0, error_middleware_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
@@ -167,4 +276,47 @@ exports.deleteGlucoseReading = (0, error_middleware_1.asyncHandler)((req, res) =
         }),
     ]);
     res.json({ message: 'Glucose reading deleted' });
+}));
+/**
+ * @swagger
+ * /api/glucose/stats:
+ *   get:
+ *     summary: Get glucose statistics
+ *     tags: [Glucose]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Start date for calculating statistics
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: End date for calculating statistics
+ *     responses:
+ *       200:
+ *         description: Glucose statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 averageGlucose:
+ *                   type: number
+ *                 highReadings:
+ *                   type: number
+ *                 lowReadings:
+ *                   type: number
+ *                 inRangeReadings:
+ *                   type: number
+ *                 totalReadings:
+ *                   type: number
+ */
+exports.getGlucoseStats = (0, error_middleware_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // ...existing code...
 }));

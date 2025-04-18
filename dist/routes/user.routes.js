@@ -10,6 +10,7 @@ router.post('/login', user_controller_1.loginUser);
 // Protected routes
 router.get('/profile', auth_middleware_1.protect, user_controller_1.getUserProfile);
 router.put('/profile', auth_middleware_1.protect, user_controller_1.updateUserProfile);
+router.put('/profile/image', auth_middleware_1.protect, user_controller_1.updateProfileImage);
 router.put('/glucose-target', auth_middleware_1.protect, user_controller_1.updateGlucoseTarget);
 router.delete('/', auth_middleware_1.protect, user_controller_1.deleteUser);
 exports.default = router;
