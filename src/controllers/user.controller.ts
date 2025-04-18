@@ -82,68 +82,74 @@ import { RegisterUserInput, LoginInput, UpdateProfileInput, UpdateProfileImageIn
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
   console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
 
-  const { 
-    email, 
-    password, 
-    firstName, 
-    lastName, 
-    birthDay, 
-    birthMonth, 
-    birthYear, 
-    weight, 
-    height,
-    glucoseProfile 
-  } = req.body;
-
-  // Validate required fields
-  if (!email || !password || !firstName || !lastName || !birthDay || 
-      !birthMonth || !birthYear || !weight || !height || !glucoseProfile) {
-    console.log('[registerUser] Missing required fields:', {
-      email: !email,
-      password: !password,
-      firstName: !firstName,
-      lastName: !lastName,
-      birthDay: !birthDay,
-      birthMonth: !birthMonth,
-      birthYear: !birthYear,
-      weight: !weight,
-      height: !height,
-      glucoseProfile: !glucoseProfile
-    });
-    res.status(400);
-    throw new Error('All fields are required');
-  }
-
-  // Check if user exists
-  const userExists = await prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (userExists) {
-    console.log('[registerUser] User already exists:', email);
-    res.status(400);
-    throw new Error('User already exists');
-  }
-
-  console.log('[registerUser] Creating new user with email:', email);
-  
   try {
+    const { 
+      email, 
+      password, 
+      firstName, 
+      lastName, 
+      birthDay, 
+      birthMonth, 
+      birthYear, 
+      weight, 
+      height,
+      glucoseProfile 
+    } = req.body;
+
+    // Validate required fields
+    const missingFields = [];
+    if (!email) missingFields.push('email');
+    if (!password) missingFields.push('password');
+    if (!firstName) missingFields.push('firstName');
+    if (!lastName) missingFields.push('lastName');
+    if (!birthDay) missingFields.push('birthDay');
+    if (!birthMonth) missingFields.push('birthMonth');
+    if (!birthYear) missingFields.push('birthYear');
+    if (!weight) missingFields.push('weight');
+    if (!height) missingFields.push('height');
+    if (!glucoseProfile) missingFields.push('glucoseProfile');
+
+    if (missingFields.length > 0) {
+      console.log('[registerUser] Missing required fields:', missingFields);
+      return res.status(400).json({
+        success: false,
+        message: `Missing required fields: ${missingFields.join(', ')}`
+      });
+    }
+
+    // Check if user exists
+    const userExists = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (userExists) {
+      console.log('[registerUser] User already exists:', email);
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists'
+      });
+    }
+
+    console.log('[registerUser] Creating new user with email:', email);
+
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user
+    // Create user with explicit type conversion
     const user = await prisma.user.create({
       data: {
         email,
         firstName,
         lastName,
         password: hashedPassword,
-        birthDay: Number(birthDay),
-        birthMonth: Number(birthMonth),
-        birthYear: Number(birthYear),
-        weight: Number(weight),
-        height: Number(height),
+        birthDay: parseInt(birthDay.toString()),
+        birthMonth: parseInt(birthMonth.toString()),
+        birthYear: parseInt(birthYear.toString()),
+        weight: parseFloat(weight.toString()),
+        height: parseFloat(height.toString()),
         glucoseProfile,
+        diabetesType: "type1", // Always type1 for this app
+        diagnosisDate: new Date(),
       },
     });
 
@@ -177,19 +183,23 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     });
 
     console.log('[registerUser] Glucose target created for user:', user.id);
-    
+
     const userWithoutPassword = excludePassword(user);
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: {
         ...userWithoutPassword,
         token: generateToken(user.id),
       }
     });
+
   } catch (error) {
-    console.error('[registerUser] Error creating user:', error);
-    res.status(400);
-    throw error;
+    console.error('[registerUser] Error details:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error creating user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
