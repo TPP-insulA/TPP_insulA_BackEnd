@@ -19,13 +19,14 @@ import { errorHandler, notFound } from './middleware/error.middleware';
 // Config
 dotenv.config();
 const app: Express = express();
+app.use(express.json());
+
 const port = process.env.PORT || 3000;
 
 // Initialize PrismaClient
 export const prisma = new PrismaClient();
 
 // Middleware
-app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
