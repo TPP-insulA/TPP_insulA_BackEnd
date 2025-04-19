@@ -1,5 +1,9 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import path from 'path';
+
+// Get the absolute path to the src directory
+const srcDir = path.resolve(__dirname, '..');
 
 const options = {
   definition: {
@@ -29,7 +33,12 @@ const options = {
       },
     },
   },
-  apis: ['./src/routes/*.ts', './src/controllers/*.ts', './src/models/*.ts'],
+  // Use absolute paths to ensure files are found in production environment
+  apis: [
+    path.join(srcDir, 'routes', '*.ts'),
+    path.join(srcDir, 'controllers', '*.ts'),
+    path.join(srcDir, 'models', '*.ts'),
+  ],
 };
 
 const specs = swaggerJsdoc(options);
@@ -40,6 +49,7 @@ const swaggerUiOptions = {
   swaggerOptions: {
     persistAuthorization: true,
   },
+  explorer: true,
 };
 
 export { specs, swaggerUi, swaggerUiOptions };
