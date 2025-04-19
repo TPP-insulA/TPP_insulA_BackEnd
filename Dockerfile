@@ -3,7 +3,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Install build dependencies and OpenSSL
-RUN apk add --no-cache python3 make g++ openssl libssl1.1
+RUN apk add --no-cache python3 make g++ openssl openssl-dev
 
 # Copy package files
 COPY package*.json ./
