@@ -3,45 +3,6 @@ import { prisma } from '../app';
 import { asyncHandler } from '../middleware/error.middleware';
 import { CreateActivityInput } from '../models';
 
-/**
- * @swagger
- * /api/activities:
- *   post:
- *     summary: Record a new activity
- *     tags: [Activities]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - type
- *               - duration
- *               - intensity
- *             properties:
- *               type:
- *                 type: string
- *                 enum: [exercise, walk, run, bike, swim, other]
- *               duration:
- *                 type: number
- *                 description: Duration in minutes
- *               intensity:
- *                 type: string
- *                 enum: [low, moderate, high]
- *               notes:
- *                 type: string
- *               timestamp:
- *                 type: string
- *                 format: date-time
- *     responses:
- *       201:
- *         description: Activity recorded successfully
- *       400:
- *         description: Invalid input data
- */
 export const createActivity = asyncHandler(async (req: Request, res: Response) => {
   const { type, value, mealType, carbs, units }: CreateActivityInput = req.body;
   
@@ -88,57 +49,6 @@ export const createActivity = asyncHandler(async (req: Request, res: Response) =
   res.status(201).json(activity);
 });
 
-/**
- * @swagger
- * /api/activities:
- *   get:
- *     summary: Get user's activities
- *     tags: [Activities]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date-time
- *         description: Start date for filtering activities
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date-time
- *         description: End date for filtering activities
- *       - in: query
- *         name: type
- *         schema:
- *           type: string
- *           enum: [exercise, walk, run, bike, swim, other]
- *         description: Filter by activity type
- *     responses:
- *       200:
- *         description: List of activities
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: string
- *                   type:
- *                     type: string
- *                   duration:
- *                     type: number
- *                   intensity:
- *                     type: string
- *                   timestamp:
- *                     type: string
- *                     format: date-time
- *                   notes:
- *                     type: string
- */
 export const getActivities = asyncHandler(async (req: Request, res: Response) => {
   const { startDate, endDate, type, limit = 100 } = req.query;
   
@@ -173,27 +83,6 @@ export const getActivities = asyncHandler(async (req: Request, res: Response) =>
   res.json(activities);
 });
 
-/**
- * @swagger
- * /api/activities/{id}:
- *   get:
- *     summary: Get a specific activity
- *     tags: [Activities]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Activity ID
- *     responses:
- *       200:
- *         description: Activity details
- *       404:
- *         description: Activity not found
- */
 export const getActivity = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   
@@ -212,47 +101,6 @@ export const getActivity = asyncHandler(async (req: Request, res: Response) => {
   res.json(activity);
 });
 
-/**
- * @swagger
- * /api/activities/{id}:
- *   put:
- *     summary: Update an activity
- *     tags: [Activities]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Activity ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               type:
- *                 type: string
- *                 enum: [exercise, walk, run, bike, swim, other]
- *               duration:
- *                 type: number
- *               intensity:
- *                 type: string
- *                 enum: [low, moderate, high]
- *               notes:
- *                 type: string
- *               timestamp:
- *                 type: string
- *                 format: date-time
- *     responses:
- *       200:
- *         description: Activity updated successfully
- *       404:
- *         description: Activity not found
- */
 export const updateActivity = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { type, value, mealType, carbs, units } = req.body;
@@ -298,27 +146,6 @@ export const updateActivity = asyncHandler(async (req: Request, res: Response) =
   res.json(updatedActivity);
 });
 
-/**
- * @swagger
- * /api/activities/{id}:
- *   delete:
- *     summary: Delete an activity
- *     tags: [Activities]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Activity ID
- *     responses:
- *       200:
- *         description: Activity deleted successfully
- *       404:
- *         description: Activity not found
- */
 export const deleteActivity = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   
@@ -355,44 +182,6 @@ export const deleteActivity = asyncHandler(async (req: Request, res: Response) =
   res.json({ message: 'Activity deleted' });
 });
 
-/**
- * @swagger
- * /api/activities/stats:
- *   get:
- *     summary: Get activity statistics
- *     tags: [Activities]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date-time
- *         description: Start date for calculating statistics
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date-time
- *         description: End date for calculating statistics
- *     responses:
- *       200:
- *         description: Activity statistics
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalActivities:
- *                   type: number
- *                 totalDuration:
- *                   type: number
- *                 activitiesByType:
- *                   type: object
- *                 averageDuration:
- *                   type: number
- */
 export const getActivityStats = asyncHandler(async (req: Request, res: Response) => {
   // ...existing code...
 });

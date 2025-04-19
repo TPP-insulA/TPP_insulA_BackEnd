@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const food_controller_1 = require("../controllers/food.controller");
 const router = (0, express_1.Router)();
+router.post('/process-image', food_controller_1.processFoodImage);
+router.post('/process-food-name', food_controller_1.processFoodName);
 router.get('/debug', (req, res) => {
     res.json({
         success: true,
@@ -17,7 +19,5 @@ router.get('/debug', (req, res) => {
         }
     });
 });
-router.post('/process-image', food_controller_1.processFoodImage);
-router.post('/process-food-name', food_controller_1.processFoodName);
 exports.default = router;
 //# sourceMappingURL=food.routes.js.map

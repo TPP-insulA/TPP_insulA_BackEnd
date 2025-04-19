@@ -2,37 +2,48 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processFoodName = exports.processFoodImage = void 0;
 const error_middleware_1 = require("../middleware/error.middleware");
-const clarifai_1 = require("clarifai");
 exports.processFoodImage = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+    var _a, _b, _c;
     const { imageUrl } = req.body;
     if (!imageUrl) {
         res.status(400).json({ success: false, message: 'Image URL is required' });
         return;
     }
     try {
-        const PAT = process.env.CLARIFAI_PAT || "a570ad1225604fa9ad3359abbcc02787";
-        const client = new clarifai_1.Clarifai({
-            apiKey: PAT,
-        });
-        const modelURL = "https://clarifai.com/clarifai/main/models/food-item-v1-recognition";
-        const response = await client.predict({
-            modelUrl: modelURL,
-            inputs: [
+        const PAT = process.env.CLARIFAI_PAT;
+        if (!PAT) {
+            throw new Error('CLARIFAI_PAT environment variable is not set');
+        }
+        const raw = JSON.stringify({
+            "user_app_id": {
+                "user_id": "clarifai",
+                "app_id": "main"
+            },
+            "inputs": [
                 {
-                    data: {
-                        image: {
-                            url: imageUrl
+                    "data": {
+                        "image": {
+                            "url": imageUrl
                         }
                     }
                 }
             ]
         });
-        if (response &&
-            response.outputs &&
-            response.outputs[0] &&
-            response.outputs[0].data &&
-            response.outputs[0].data.concepts) {
-            const concepts = response.outputs[0].data.concepts;
+        const requestOptions = {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Key ' + PAT
+            },
+            body: raw
+        };
+        const response = await fetch("https://api.clarifai.com/v2/models/food-item-recognition/outputs", requestOptions);
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(`Clarifai API error: ${response.status}`);
+        }
+        if ((_c = (_b = (_a = result === null || result === void 0 ? void 0 : result.outputs) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.concepts) {
+            const concepts = result.outputs[0].data.concepts;
             const predictions = concepts.map(concept => ({
                 name: concept.name,
                 probability: concept.value
@@ -51,7 +62,7 @@ exports.processFoodImage = (0, error_middleware_1.asyncHandler)(async (req, res)
         return;
     }
     catch (error) {
-        console.error('Error al usar la API de Clarifai:', error);
+        console.error('Error processing image:', error);
         res.status(500).json({
             success: false,
             message: `Error processing image: ${error.message || 'Unknown error'}`

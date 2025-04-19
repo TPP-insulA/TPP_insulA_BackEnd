@@ -83,11 +83,9 @@ export const processFoodImage = asyncHandler(async (req: Request, res: Response)
       throw new Error(`Clarifai API error: ${response.status}`);
     }
 
-    // Check if we have valid outputs
     if (result?.outputs?.[0]?.data?.concepts) {
       const concepts = result.outputs[0].data.concepts;
       
-      // Create an array of food predictions with probabilities
       const predictions = concepts.map(concept => ({
         name: concept.name,
         probability: concept.value
@@ -147,10 +145,8 @@ export const processFoodName = asyncHandler(async (req: Request, res: Response):
       throw new Error(`CalorieNinja API error: ${response.status}`);
     }
 
-    // Use type assertion to ensure type safety
     const data = await response.json() as NutritionResponse;
 
-    // Transform the response to include only the requested macros
     const simplifiedNutrition = data.items.map(item => ({
       name: item.name,
       calories: item.calories,

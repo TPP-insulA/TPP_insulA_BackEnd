@@ -126,7 +126,7 @@ exports.registerUser = (0, error_middleware_1.asyncHandler)(async (req, res) => 
         return res.status(500).json({
             success: false,
             message: 'Error registering user',
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
+            error: error instanceof Error ? error.message : 'Unknown error',
             details: process.env.NODE_ENV === 'development' ? error : undefined
         });
     }

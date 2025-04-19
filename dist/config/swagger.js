@@ -7,10 +7,6 @@ exports.swaggerUiOptions = exports.swaggerUi = exports.specs = void 0;
 const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 exports.swaggerUi = swagger_ui_express_1.default;
-const path_1 = __importDefault(require("path"));
-const srcDir = path_1.default.resolve(__dirname, '..');
-const isProd = process.env.NODE_ENV === 'production';
-const fileExtension = isProd ? 'js' : 'ts';
 const options = {
     definition: {
         openapi: '3.0.0',
@@ -40,10 +36,12 @@ const options = {
         },
     },
     apis: [
-        path_1.default.join(srcDir, 'routes', `*.${fileExtension}`),
-        path_1.default.join(srcDir, 'controllers', `*.${fileExtension}`),
-        path_1.default.join(srcDir, 'models', `*.${fileExtension}`)
-    ],
+        './dist/routes/*.js',
+        './dist/controllers/*.js',
+        './src/routes/*.ts',
+        './src/controllers/*.ts',
+        './src/models/*.{ts,js}'
+    ]
 };
 const specs = (0, swagger_jsdoc_1.default)(options);
 exports.specs = specs;

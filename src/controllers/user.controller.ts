@@ -9,87 +9,11 @@ interface PrismaError extends Error {
   meta?: unknown;
 }
 
-/**
- * @swagger
- * /api/users/register:
- *   post:
- *     summary: Register a new user
- *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - firstName
- *               - lastName
- *               - birthDay
- *               - birthMonth
- *               - birthYear
- *               - weight
- *               - height
- *               - glucoseProfile
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 format: password
- *               firstName:
- *                 type: string
- *               lastName:
- *                 type: string
- *               birthDay:
- *                 type: integer
- *                 minimum: 1
- *                 maximum: 31
- *               birthMonth:
- *                 type: integer
- *                 minimum: 1
- *                 maximum: 12
- *               birthYear:
- *                 type: integer
- *                 minimum: 1900
- *               weight:
- *                 type: number
- *                 description: Weight in kilograms
- *               height:
- *                 type: number
- *                 description: Height in centimeters
- *               glucoseProfile:
- *                 type: string
- *                 enum: [hypo, normal, hyper]
- *     responses:
- *       201:
- *         description: User registered successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                 email:
- *                   type: string
- *                 firstName:
- *                   type: string
- *                 lastName:
- *                   type: string
- *                 token:
- *                   type: string
- *       400:
- *         description: User already exists or invalid data
- */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
   try {
     console.log('[registerUser] Starting registration process');
     console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
     
-    // Additional request body validation
     if (!req.body || Object.keys(req.body).length === 0) {
       console.error('[registerUser] Empty request body or parsing error');
       return res.status(400).json({
@@ -111,7 +35,6 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       glucoseProfile 
     } = req.body;
 
-    // Enhanced validation with detailed error messages
     const validationErrors = [];
     if (!email) validationErrors.push('email is required');
     if (!password) validationErrors.push('password is required');
@@ -133,7 +56,6 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       });
     }
 
-    // Check if user exists
     const userExists = await prisma.user.findUnique({
       where: { email },
     });
@@ -146,7 +68,6 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       });
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password);
 
     console.log('[registerUser] Creating user with data:', {
@@ -161,7 +82,6 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       glucoseProfile
     });
 
-    // Create user with explicit data validation
     const userData = {
       email: String(email),
       firstName: String(firstName),
@@ -199,7 +119,6 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
         // normal uses default values
       }
 
-      // Create glucose target
       await prisma.glucoseTarget.create({
         data: {
           minTarget,
@@ -235,60 +154,16 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     return res.status(500).json({
       success: false,
       message: 'Error registering user',
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: error instanceof Error ? error.message : 'Unknown error',
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
   }
 });
 
-/**
- * @swagger
- * /api/users/login:
- *   post:
- *     summary: Login user
- *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 format: password
- *     responses:
- *       200:
- *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                 email:
- *                   type: string
- *                 firstName:
- *                   type: string
- *                 lastName:
- *                   type: string
- *                 token:
- *                   type: string
- *       401:
- *         description: Invalid credentials
- */
 export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   console.log('[loginUser] Attempt login for email:', req.body.email);
   const { email, password }: LoginInput = req.body;
 
-  // Check if user exists
   const user = await prisma.user.findUnique({
     where: { email },
   });
@@ -299,7 +174,6 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
     throw new Error('Invalid credentials');
   }
 
-  // Check if password matches
   const isMatch = await comparePassword(password, user.password);
   console.log('[loginUser] Password match result:', isMatch);
 
@@ -318,52 +192,6 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-/**
- * @swagger
- * /api/users/profile:
- *   get:
- *     summary: Get user profile
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User profile retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                 email:
- *                   type: string
- *                 firstName:
- *                   type: string
- *                 lastName:
- *                   type: string
- *                 birthDay:
- *                   type: integer
- *                 birthMonth:
- *                   type: integer
- *                 birthYear:
- *                   type: integer
- *                 weight:
- *                   type: number
- *                 height:
- *                   type: number
- *                 glucoseProfile:
- *                   type: string
- *                 glucoseTarget:
- *                   type: object
- *                   properties:
- *                     minTarget:
- *                       type: number
- *                     maxTarget:
- *                       type: number
- *       404:
- *         description: User not found
- */
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   console.log('[getUserProfile] Fetching profile for user:', req.user.id);
   const user = await prisma.user.findUnique({
@@ -382,13 +210,12 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
   console.log('[getUserProfile] Profile fetched successfully for user:', req.user.id);
   const userWithoutPassword = excludePassword(user);
 
-  // Format the response to match frontend expectations
   res.json({
     ...userWithoutPassword,
     name: `${user.firstName} ${user.lastName}`,
     email: user.email,
     medicalInfo: {
-      diabetesType: "type1", // Always type1 for this app
+      diabetesType: "type1",
       diagnosisDate: user.diagnosisDate,
       treatingDoctor: user.treatingDoctor || 'No asignado',
     },
@@ -396,48 +223,6 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
   });
 });
 
-/**
- * @swagger
- * /api/users/profile:
- *   put:
- *     summary: Update user profile
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *               firstName:
- *                 type: string
- *               lastName:
- *                 type: string
- *               birthDay:
- *                 type: integer
- *               birthMonth:
- *                 type: integer
- *               birthYear:
- *                 type: integer
- *               weight:
- *                 type: number
- *               height:
- *                 type: number
- *               glucoseProfile:
- *                 type: string
- *                 enum: [hypo, normal, hyper]
- *     responses:
- *       200:
- *         description: Profile updated successfully
- *       404:
- *         description: User not found
- */
 export const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
   console.log('[updateUserProfile] Update request for user:', req.user.id);
   console.log('[updateUserProfile] Update data:', JSON.stringify(req.body, null, 2));
@@ -457,7 +242,6 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
   }
 
   console.log('[updateUserProfile] Updating user:', req.user.id);
-  // Update user fields
   const updatedUser = await prisma.user.update({
     where: { id: req.user.id },
     data: {
@@ -483,13 +267,12 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
   console.log('[updateUserProfile] User updated successfully:', req.user.id);
   const userWithoutPassword = excludePassword(updatedUser);
 
-  // Format the response to match frontend expectations
   res.json({
     ...userWithoutPassword,
     name: `${updatedUser.firstName} ${updatedUser.lastName}`,
     email: updatedUser.email,
     medicalInfo: {
-      diabetesType: "type1", // Always type1 for this app
+      diabetesType: "type1",
       diagnosisDate: updatedUser.diagnosisDate,
       treatingDoctor: updatedUser.treatingDoctor || 'No asignado',
     },
@@ -497,34 +280,6 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
   });
 });
 
-/**
- * @swagger
- * /api/users/glucose-target:
- *   put:
- *     summary: Update user glucose target
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - minTarget
- *               - maxTarget
- *             properties:
- *               minTarget:
- *                 type: number
- *               maxTarget:
- *                 type: number
- *     responses:
- *       200:
- *         description: Glucose target updated successfully
- *       400:
- *         description: Invalid target values
- */
 export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Response) => {
   console.log('[updateGlucoseTarget] Update request for user:', req.user.id);
   console.log('[updateGlucoseTarget] Target values:', JSON.stringify(req.body, null, 2));
@@ -555,20 +310,6 @@ export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Respon
   res.json(target);
 });
 
-/**
- * @swagger
- * /api/users:
- *   delete:
- *     summary: Delete user account
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User deleted successfully
- *       404:
- *         description: User not found
- */
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   console.log('[deleteUser] Delete request for user:', req.user.id);
   
@@ -588,32 +329,6 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
-/**
- * @swagger
- * /api/users/profile/image:
- *   put:
- *     summary: Update user profile image
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - imageUrl
- *             properties:
- *               imageUrl:
- *                 type: string
- *                 description: URL of the uploaded profile image
- *     responses:
- *       200:
- *         description: Profile image updated successfully
- *       404:
- *         description: User not found
- */
 export const updateProfileImage = asyncHandler(async (req: Request, res: Response) => {
   console.log('[updateProfileImage] Update request for user:', req.user.id);
   console.log('[updateProfileImage] Image URL:', req.body.imageUrl);

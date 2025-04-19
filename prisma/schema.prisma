@@ -27,6 +27,7 @@ model User {
   readings      GlucoseReading[]
   activities    Activity[]
   insulinDoses  InsulinDose[]
+  meals         Meal[]     
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -68,4 +69,21 @@ model InsulinDose {
   timestamp   DateTime @default(now())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
+}
+
+model Meal {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  carbs       Float
+  protein     Float
+  fat         Float
+  calories    Float
+  quantity    Float    @default(1)
+  photo       String?
+  timestamp   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
