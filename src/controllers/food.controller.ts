@@ -4,6 +4,19 @@ import { asyncHandler } from '../middleware/error.middleware';
 // Import the new Clarifai client library
 import { Clarifai } from 'clarifai';
 
+interface NutritionItem {
+  name: string;
+  calories: number;
+  carbohydrates_total_g: number;
+  protein_g: number;
+  fat_total_g: number;
+  serving_size_g: number;
+}
+
+interface NutritionResponse {
+  items: NutritionItem[];
+}
+
 export const processFoodImage = asyncHandler(async (req: Request, res: Response) => {
   const { imageUrl } = req.body;
   
@@ -12,18 +25,14 @@ export const processFoodImage = asyncHandler(async (req: Request, res: Response)
   }
 
   try {
-    // Use the PAT from environment variables or use the one from the Python example as fallback
     const PAT = process.env.CLARIFAI_PAT || "a570ad1225604fa9ad3359abbcc02787";
     
-    // Initialize the Clarifai client
     const client = new Clarifai({
       apiKey: PAT,
     });
 
-    // Define the model URL similar to the Python example
     const modelURL = "https://clarifai.com/clarifai/main/models/food-item-v1-recognition";
     
-    // Make the prediction request
     const response = await client.predict({
       modelUrl: modelURL,
       inputs: [
@@ -69,7 +78,63 @@ export const processFoodImage = asyncHandler(async (req: Request, res: Response)
     console.error('Error al usar la API de Clarifai:', error);
     res.status(500).json({ 
       success: false, 
-      message: `Error processing image: ${error.message || 'Unknown error'}`
+      message: `Error processing image: ${error.message || 'Unknown error'}` 
+    });
+  }
+});
+
+export const processFoodName = asyncHandler(async (req: Request, res: Response) => {
+  const { query } = req.body;
+
+  if (!query) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Food query is required' 
+    });
+  }
+
+  try {
+    const NINJA_API_KEY = process.env.NINJA_CALORIE_API_KEY;
+    
+    if (!NINJA_API_KEY) {
+      throw new Error('NINJA_CALORIE_API_KEY environment variable is not set');
+    }
+
+    const response = await fetch(
+      `https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          'X-Api-Key': NINJA_API_KEY
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`CalorieNinja API error: ${response.status}`);
+    }
+
+    const data: NutritionResponse = await response.json();
+
+    // Transform the response to include only the requested macros
+    const simplifiedNutrition = data.items.map(item => ({
+      name: item.name,
+      calories: item.calories,
+      carbs_g: item.carbohydrates_total_g,
+      protein_g: item.protein_g,
+      fat_g: item.fat_total_g,
+      serving_size_g: item.serving_size_g
+    }));
+
+    res.json({
+      success: true,
+      items: simplifiedNutrition
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching nutrition data:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Error processing food query: ${error.message}` 
     });
   }
 });
