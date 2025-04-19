@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/error.middleware';
-import { Clarifai } from 'clarifai';
 
 interface NutritionItem {
   name: string;
@@ -15,6 +14,28 @@ interface NutritionResponse {
   items: NutritionItem[];
 }
 
+interface ClarifaiConcept {
+  id: string;
+  name: string;
+  value: number;
+  app_id: string;
+}
+
+interface ClarifaiOutput {
+  id: string;
+  data: {
+    concepts: ClarifaiConcept[];
+  };
+}
+
+interface ClarifaiResponse {
+  status: {
+    code: number;
+    description: string;
+  };
+  outputs: ClarifaiOutput[];
+}
+
 export const processFoodImage = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { imageUrl } = req.body;
   
@@ -24,36 +45,47 @@ export const processFoodImage = asyncHandler(async (req: Request, res: Response)
   }
 
   try {
-    const PAT = process.env.CLARIFAI_PAT || "a570ad1225604fa9ad3359abbcc02787";
+    const PAT = process.env.CLARIFAI_PAT;
     
-    const client = new Clarifai({
-      apiKey: PAT,
-    });
+    if (!PAT) {
+      throw new Error('CLARIFAI_PAT environment variable is not set');
+    }
 
-    const modelURL = "https://clarifai.com/clarifai/main/models/food-item-v1-recognition";
-    
-    const response = await client.predict({
-      modelUrl: modelURL,
-      inputs: [
+    const raw = JSON.stringify({
+      "user_app_id": {
+        "user_id": "clarifai",
+        "app_id": "main"
+      },
+      "inputs": [
         {
-          data: {
-            image: {
-              url: imageUrl
+          "data": {
+            "image": {
+              "url": imageUrl
             }
           }
         }
       ]
     });
 
+    const requestOptions = {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Key ' + PAT
+      },
+      body: raw
+    };
+
+    const response = await fetch("https://api.clarifai.com/v2/models/food-item-recognition/outputs", requestOptions);
+    const result = await response.json() as ClarifaiResponse;
+
+    if (!response.ok) {
+      throw new Error(`Clarifai API error: ${response.status}`);
+    }
+
     // Check if we have valid outputs
-    if (response && 
-        response.outputs && 
-        response.outputs[0] && 
-        response.outputs[0].data && 
-        response.outputs[0].data.concepts) {
-      
-      // Extract concepts (food labels) from the output
-      const concepts = response.outputs[0].data.concepts;
+    if (result?.outputs?.[0]?.data?.concepts) {
+      const concepts = result.outputs[0].data.concepts;
       
       // Create an array of food predictions with probabilities
       const predictions = concepts.map(concept => ({
@@ -61,7 +93,6 @@ export const processFoodImage = asyncHandler(async (req: Request, res: Response)
         probability: concept.value
       }));
       
-      // Return the identified foods with their probabilities
       res.json({
         success: true,
         foodName: predictions[0].name,
@@ -76,7 +107,7 @@ export const processFoodImage = asyncHandler(async (req: Request, res: Response)
     });
     return;
   } catch (error: any) {
-    console.error('Error al usar la API de Clarifai:', error);
+    console.error('Error processing image:', error);
     res.status(500).json({ 
       success: false, 
       message: `Error processing image: ${error.message || 'Unknown error'}` 
