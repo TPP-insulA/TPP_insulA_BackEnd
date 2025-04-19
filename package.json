@@ -7,11 +7,11 @@
     "start": "node dist/app.js",
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "rimraf dist && tsc && npm run copy-files",
-    "copy-files": "copyfiles -u 1 prisma/**/* dist/ && copyfiles -u 1 src/**/*.d.ts dist/",
+    "copy-files": "copyfiles -u 1 \"src/**/*.d.ts\" dist/ && copyfiles -u 1 \"prisma/**/*\" dist/",
     "prepare": "npx prisma generate",
     "deploy": "npm run build && npm run prepare && npm start",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
     "postinstall": "npm run prepare"
   },
   "repository": {

@@ -4,6 +4,8 @@ import path from 'path';
 
 // Get the absolute path to the src directory
 const srcDir = path.resolve(__dirname, '..');
+const isProd = process.env.NODE_ENV === 'production';
+const fileExtension = isProd ? 'js' : 'ts';
 
 const options = {
   definition: {
@@ -15,12 +17,12 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Development server',
-      },
-      {
         url: 'https://tppinsulabackend-production.up.railway.app',
         description: 'Production server',
+      },
+      {
+        url: 'http://localhost:3000',
+        description: 'Development server',
       }
     ],
     components: {
@@ -33,11 +35,11 @@ const options = {
       },
     },
   },
-  // Use absolute paths to ensure files are found in production environment
+  // Handle both .ts and .js files depending on environment
   apis: [
-    path.join(srcDir, 'routes', '*.ts'),
-    path.join(srcDir, 'controllers', '*.ts'),
-    path.join(srcDir, 'models', '*.ts'),
+    path.join(srcDir, 'routes', `*.${fileExtension}`),
+    path.join(srcDir, 'controllers', `*.${fileExtension}`),
+    path.join(srcDir, 'models', `*.${fileExtension}`)
   ],
 };
 
@@ -48,8 +50,12 @@ const swaggerUiOptions = {
   customSiteTitle: 'InsuLA API Documentation',
   swaggerOptions: {
     persistAuthorization: true,
+    defaultModelsExpandDepth: -1,
+    docExpansion: 'list',
+    filter: true,
+    showExtensions: true
   },
-  explorer: true,
+  explorer: true
 };
 
 export { specs, swaggerUi, swaggerUiOptions };

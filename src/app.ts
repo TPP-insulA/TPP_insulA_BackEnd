@@ -28,19 +28,9 @@ export const prisma = new PrismaClient({
   log: ['query', 'error', 'warn'],
 });
 
-// Middleware
-app.use(express.json({
-  limit: '10mb',
-  verify: (req: http.IncomingMessage, res: http.ServerResponse, buf: Buffer) => {
-    try {
-      JSON.parse(buf.toString());
-    } catch (e) {
-      console.error('Invalid JSON input:', e);
-      (res as Response).status(400).json({ success: false, message: 'Invalid JSON payload' });
-      throw new Error('Invalid JSON');
-    }
-  },
-}));
+// Basic middleware
+app.use(morgan('dev'));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Configure CORS
@@ -53,13 +43,11 @@ app.use(cors({
   maxAge: 86400,
 }));
 
-// Configure Helmet
+// Configure Helmet (before routes)
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
 }));
-
-app.use(morgan('dev'));
 
 // Request logging middleware
 app.use((req: Request, res: Response, next) => {
@@ -77,21 +65,7 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 
-// Mount debug routes first for better visibility
-app.use('/api/debug', debugRoutes);
-
-// API Routes
-app.use('/api/users', userRoutes);
-app.use('/api/glucose', glucoseRoutes);
-app.use('/api/activities', activityRoutes);
-app.use('/api/insulin', insulinRoutes);
-app.use('/api/food', foodRoutes);
-
-// Swagger UI
-app.use('/api/docs', swaggerUi.serve);
-app.get('/api/docs', swaggerUi.setup(specs, swaggerUiOptions));
-
-// Health check endpoint
+// Health check endpoint (before api routes)
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'OK',
@@ -103,7 +77,30 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// Error handling
+// Swagger documentation (before api routes)
+app.use('/api/docs', swaggerUi.serve);
+app.get('/api/docs', swaggerUi.setup(specs, {
+  ...swaggerUiOptions,
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+}));
+
+// Mount debug routes first
+app.use('/api/debug', debugRoutes);
+
+// API Routes
+app.use('/api/users', userRoutes);
+app.use('/api/glucose', glucoseRoutes);
+app.use('/api/activities', activityRoutes);
+app.use('/api/insulin', insulinRoutes);
+app.use('/api/food', foodRoutes);
+
+// Root path redirect to API docs
+app.get('/', (req: Request, res: Response) => {
+  res.redirect('/api/docs');
+});
+
+// Error handling middleware (must be last)
 app.use(notFound);
 app.use((err: any, req: Request, res: Response, next: any) => {
   console.error('=== Error Details ===');
