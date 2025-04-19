@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/error.middleware';
-
-// Import the new Clarifai client library
 import { Clarifai } from 'clarifai';
 
 interface NutritionItem {
@@ -17,11 +15,12 @@ interface NutritionResponse {
   items: NutritionItem[];
 }
 
-export const processFoodImage = asyncHandler(async (req: Request, res: Response) => {
+export const processFoodImage = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { imageUrl } = req.body;
   
   if (!imageUrl) {
-    return res.status(400).json({ success: false, message: 'Image URL is required' });
+    res.status(400).json({ success: false, message: 'Image URL is required' });
+    return;
   }
 
   try {
@@ -68,29 +67,33 @@ export const processFoodImage = asyncHandler(async (req: Request, res: Response)
         foodName: predictions[0].name,
         predictions: predictions
       });
-    } else {
-      res.status(404).json({ 
-        success: false, 
-        message: 'No food detected in the image' 
-      });
+      return;
     }
+
+    res.status(404).json({ 
+      success: false, 
+      message: 'No food detected in the image' 
+    });
+    return;
   } catch (error: any) {
     console.error('Error al usar la API de Clarifai:', error);
     res.status(500).json({ 
       success: false, 
       message: `Error processing image: ${error.message || 'Unknown error'}` 
     });
+    return;
   }
 });
 
-export const processFoodName = asyncHandler(async (req: Request, res: Response) => {
+export const processFoodName = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { query } = req.body;
 
   if (!query) {
-    return res.status(400).json({ 
+    res.status(400).json({ 
       success: false, 
       message: 'Food query is required' 
     });
+    return;
   }
 
   try {
@@ -113,7 +116,8 @@ export const processFoodName = asyncHandler(async (req: Request, res: Response) 
       throw new Error(`CalorieNinja API error: ${response.status}`);
     }
 
-    const data: NutritionResponse = await response.json();
+    // Use type assertion to ensure type safety
+    const data = await response.json() as NutritionResponse;
 
     // Transform the response to include only the requested macros
     const simplifiedNutrition = data.items.map(item => ({
@@ -129,6 +133,7 @@ export const processFoodName = asyncHandler(async (req: Request, res: Response) 
       success: true,
       items: simplifiedNutrition
     });
+    return;
 
   } catch (error: any) {
     console.error('Error fetching nutrition data:', error);
@@ -136,5 +141,6 @@ export const processFoodName = asyncHandler(async (req: Request, res: Response) 
       success: false, 
       message: `Error processing food query: ${error.message}` 
     });
+    return;
   }
 });
