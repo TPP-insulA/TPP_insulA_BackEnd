@@ -3,9 +3,54 @@ import { processFoodImage, processFoodName } from '../controllers/food.controlle
 
 /**
  * @swagger
+ * tags:
+ *   name: Food
+ *   description: Food recognition and nutritional information
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     FoodPrediction:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           description: Name of the identified food
+ *         probability:
+ *           type: number
+ *           description: Confidence score of the prediction
+ *     NutritionInfo:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           description: Name of the food item
+ *         calories:
+ *           type: number
+ *           description: Total calories
+ *         carbs_g:
+ *           type: number
+ *           description: Total carbohydrates in grams
+ *         protein_g:
+ *           type: number
+ *           description: Total protein in grams
+ *         fat_g:
+ *           type: number
+ *           description: Total fat in grams
+ *         serving_size_g:
+ *           type: number
+ *           description: Serving size in grams
+ */
+
+const router = Router();
+
+/**
+ * @swagger
  * /api/food/process-image:
  *   post:
- *     summary: Process a food image using Clarifai API
+ *     summary: Identify food from an image using Clarifai AI
  *     tags: [Food]
  *     requestBody:
  *       required: true
@@ -33,14 +78,22 @@ import { processFoodImage, processFoodName } from '../controllers/food.controlle
  *                 foodName:
  *                   type: string
  *                   example: "pizza"
+ *                 predictions:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/FoodPrediction'
  *       400:
  *         description: Invalid request or missing image URL
  *       500:
  *         description: Server error or Clarifai API error
- * 
+ */
+router.post('/process-image', processFoodImage);
+
+/**
+ * @swagger
  * /api/food/process-food-name:
  *   post:
- *     summary: Get nutritional information for a food query
+ *     summary: Get nutritional information for food items
  *     tags: [Food]
  *     requestBody:
  *       required: true
@@ -53,7 +106,8 @@ import { processFoodImage, processFoodName } from '../controllers/food.controlle
  *             properties:
  *               query:
  *                 type: string
- *                 description: Food query to analyze (e.g., "3lb carrots and a chicken sandwich")
+ *                 description: Food description (e.g., "3lb carrots and a chicken sandwich")
+ *                 example: "3lb carrots and a chicken sandwich"
  *     responses:
  *       200:
  *         description: Nutritional information retrieved successfully
@@ -68,32 +122,13 @@ import { processFoodImage, processFoodName } from '../controllers/food.controlle
  *                 items:
  *                   type: array
  *                   items:
- *                     type: object
- *                     properties:
- *                       name:
- *                         type: string
- *                         example: "carrots"
- *                       calories:
- *                         type: number
- *                         example: 477.8
- *                       carbs_g:
- *                         type: number
- *                         example: 110.2
- *                       protein_g:
- *                         type: number
- *                         example: 10.3
- *                       fat_g:
- *                         type: number
- *                         example: 2.3
- *                       serving_size_g:
- *                         type: number
- *                         example: 1360.77
+ *                     $ref: '#/components/schemas/NutritionInfo'
  *       400:
- *         description: Invalid request or missing food query
+ *         description: Invalid request or missing query
  *       500:
  *         description: Server error or CalorieNinja API error
  */
-const router = Router();
+router.post('/process-food-name', processFoodName);
 
 // Debug route to verify router is working
 router.get('/debug', (req, res) => {
@@ -110,8 +145,5 @@ router.get('/debug', (req, res) => {
     }
   });
 });
-
-router.post('/process-image', processFoodImage);
-router.post('/process-food-name', processFoodName);
 
 export default router;

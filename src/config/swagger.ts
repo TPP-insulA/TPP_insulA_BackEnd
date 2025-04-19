@@ -2,11 +2,6 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import path from 'path';
 
-// Get the absolute path to the src directory
-const srcDir = path.resolve(__dirname, '..');
-const isProd = process.env.NODE_ENV === 'production';
-const fileExtension = isProd ? 'js' : 'ts';
-
 const options = {
   definition: {
     openapi: '3.0.0',
@@ -35,12 +30,14 @@ const options = {
       },
     },
   },
-  // Handle both .ts and .js files depending on environment
+  // Use absolute paths and include both .ts and .js files
   apis: [
-    path.join(srcDir, 'routes', `*.${fileExtension}`),
-    path.join(srcDir, 'controllers', `*.${fileExtension}`),
-    path.join(srcDir, 'models', `*.${fileExtension}`)
-  ],
+    './dist/routes/*.js',           // For production
+    './dist/controllers/*.js',      // For production
+    './src/routes/*.ts',           // For development
+    './src/controllers/*.ts',      // For development
+    './src/models/*.{ts,js}'      // For both
+  ]
 };
 
 const specs = swaggerJsdoc(options);
