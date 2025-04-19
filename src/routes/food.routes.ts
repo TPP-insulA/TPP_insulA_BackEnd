@@ -94,6 +94,23 @@ import { processFoodImage, processFoodName } from '../controllers/food.controlle
  *         description: Server error or CalorieNinja API error
  */
 const router = Router();
+
+// Debug route to verify router is working
+router.get('/debug', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Food router is working',
+    availableRoutes: [
+      { path: '/process-image', method: 'POST' },
+      { path: '/process-food-name', method: 'POST' }
+    ],
+    environmentInfo: {
+      nodeEnv: process.env.NODE_ENV,
+      hasNinjaKey: !!process.env.NINJA_CALORIE_API_KEY
+    }
+  });
+});
+
 router.post('/process-image', processFoodImage);
 router.post('/process-food-name', processFoodName);
 

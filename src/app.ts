@@ -65,15 +65,49 @@ app.use(morgan('dev'));
 
 // Add detailed request logging middleware
 app.use((req: Request, res: Response, next) => {
+  console.log('=== Request Details ===');
   console.log('Request URL:', req.url);
   console.log('Request Method:', req.method);
-  console.log('Request Headers:', req.headers);
+  console.log('Request Path:', req.path);
+  console.log('Base URL:', req.baseUrl);
+  console.log('Original URL:', req.originalUrl);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
   if (req.body && Object.keys(req.body).length > 0) {
-    console.log('Request Body:', JSON.stringify(req.body, null, 2));
-  } else {
-    console.log('Request Body: Empty or not parsed');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
   }
+  console.log('=== End Request Details ===');
   next();
+});
+
+// Add route debugging endpoint
+app.get('/api/debug/routes', (req: Request, res: Response) => {
+  const routes: any[] = [];
+  app._router.stack.forEach((middleware: any) => {
+    if (middleware.route) { // routes registered directly on the app
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') { // router middleware
+      middleware.handle.stack.forEach((handler: any) => {
+        if (handler.route) {
+          routes.push({
+            path: middleware.regexp.toString() + handler.route.path,
+            methods: Object.keys(handler.route.methods)
+          });
+        }
+      });
+    }
+  });
+  
+  res.json({
+    success: true,
+    environment: process.env.NODE_ENV,
+    routes,
+    foodRoutesRegistered: routes.some(r => r.path.includes('/food')),
+    processImageRouteRegistered: routes.some(r => r.path.includes('/food/process-image')),
+    processFoodNameRouteRegistered: routes.some(r => r.path.includes('/food/process-food-name'))
+  });
 });
 
 // Routes
@@ -95,12 +129,35 @@ app.get('/api/docs-test', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'OK', message: 'Server is running' });
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    environment: process.env.NODE_ENV,
+    nodeVersion: process.version,
+    uptime: process.uptime()
+  });
 });
 
 // Error handling middleware
 app.use(notFound);
-app.use(errorHandler);
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error('=== Error Details ===');
+  console.error('Error:', err);
+  console.error('Stack:', err.stack);
+  console.error('URL:', req.url);
+  console.error('Method:', req.method);
+  console.error('Body:', req.body);
+  console.error('=== End Error Details ===');
+
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
+  });
+});
 
 const port = Number(process.env.PORT) || 3000;
 
