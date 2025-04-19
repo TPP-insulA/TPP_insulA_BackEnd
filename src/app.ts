@@ -6,14 +6,15 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { specs, swaggerUi, swaggerUiOptions } from './config/swagger';
-import http from 'http'; // Add this import for ServerResponse
+import http from 'http';
 
 // Routes
 import userRoutes from './routes/user.routes';
 import glucoseRoutes from './routes/glucose.routes';
 import activityRoutes from './routes/activity.routes';
 import insulinRoutes from './routes/insulin.routes';
-import foodRoutes from './routes/food.routes'; 
+import foodRoutes from './routes/food.routes';
+import debugRoutes from './routes/debug.routes';
 
 // Middleware
 import { errorHandler, notFound } from './middleware/error.middleware';
@@ -35,7 +36,6 @@ app.use(express.json({
       JSON.parse(buf.toString());
     } catch (e) {
       console.error('Invalid JSON input:', e);
-      // Use Express Response type by casting or handling differently
       (res as Response).status(400).json({ success: false, message: 'Invalid JSON payload' });
       throw new Error('Invalid JSON');
     }
@@ -43,27 +43,25 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configure CORS with more permissive settings for development/production
+// Configure CORS
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   exposedHeaders: ['Content-Length', 'Content-Type'],
   credentials: true,
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
 }));
 
-// Configure Helmet with less restrictive settings for Swagger UI
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
-  })
-);
+// Configure Helmet
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
 
 app.use(morgan('dev'));
 
-// Add detailed request logging middleware
+// Request logging middleware
 app.use((req: Request, res: Response, next) => {
   console.log('=== Request Details ===');
   console.log('Request URL:', req.url);
@@ -79,66 +77,33 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 
-// Add route debugging endpoint
-app.get('/api/debug/routes', (req: Request, res: Response) => {
-  const routes: any[] = [];
-  app._router.stack.forEach((middleware: any) => {
-    if (middleware.route) { // routes registered directly on the app
-      routes.push({
-        path: middleware.route.path,
-        methods: Object.keys(middleware.route.methods)
-      });
-    } else if (middleware.name === 'router') { // router middleware
-      middleware.handle.stack.forEach((handler: any) => {
-        if (handler.route) {
-          routes.push({
-            path: middleware.regexp.toString() + handler.route.path,
-            methods: Object.keys(handler.route.methods)
-          });
-        }
-      });
-    }
-  });
-  
-  res.json({
-    success: true,
-    environment: process.env.NODE_ENV,
-    routes,
-    foodRoutesRegistered: routes.some(r => r.path.includes('/food')),
-    processImageRouteRegistered: routes.some(r => r.path.includes('/food/process-image')),
-    processFoodNameRouteRegistered: routes.some(r => r.path.includes('/food/process-food-name'))
-  });
-});
+// Mount debug routes first for better visibility
+app.use('/api/debug', debugRoutes);
 
-// Routes
+// API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/glucose', glucoseRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/insulin', insulinRoutes);
-app.use('/api/food', foodRoutes); 
+app.use('/api/food', foodRoutes);
 
-// Serve Swagger UI at /api/docs
-// Make sure this is set up properly for production
+// Swagger UI
 app.use('/api/docs', swaggerUi.serve);
 app.get('/api/docs', swaggerUi.setup(specs, swaggerUiOptions));
 
-// Simple test endpoint for Swagger UI
-app.get('/api/docs-test', (req, res) => {
-  res.json({ success: true, message: 'Swagger documentation endpoint is accessible' });
-});
-
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     message: 'Server is running',
     environment: process.env.NODE_ENV,
     nodeVersion: process.version,
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
   });
 });
 
-// Error handling middleware
+// Error handling
 app.use(notFound);
 app.use((err: any, req: Request, res: Response, next: any) => {
   console.error('=== Error Details ===');
@@ -159,9 +124,9 @@ app.use((err: any, req: Request, res: Response, next: any) => {
   });
 });
 
+// Server setup
 const port = Number(process.env.PORT) || 3000;
 
-// Start server
 if (require.main === module) {
   const server = app.listen(port, '0.0.0.0', () => {
     console.log(`⚡️[server]: Server is running on port ${port}`);
@@ -169,7 +134,6 @@ if (require.main === module) {
     console.log('Database connection established');
   });
 
-  // Handle graceful shutdown
   const shutdown = async () => {
     console.log('Shutting down gracefully...');
     await prisma.$disconnect();

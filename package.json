@@ -4,14 +4,15 @@
   "description": "Backend para aplicación de control de insulina",
   "main": "dist/app.js",
   "scripts": {
-    "start": "npx prisma migrate deploy && node dist/app.js",
+    "start": "node dist/app.js",
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
-    "build": "tsc && npm run copy-prisma-files",
-    "copy-prisma-files": "copyfiles -u 1 prisma/**/* dist/",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rimraf dist && tsc && npm run copy-files",
+    "copy-files": "copyfiles -u 1 prisma/**/* dist/ && copyfiles -u 1 src/**/*.d.ts dist/",
+    "prepare": "npx prisma generate",
+    "deploy": "npm run build && npm run prepare && npm start",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "postinstall": "prisma generate"
+    "postinstall": "npm run prepare"
   },
   "repository": {
     "type": "git",
@@ -50,6 +51,7 @@
     "@types/swagger-ui-express": "^4.1.8",
     "copyfiles": "^2.4.1",
     "prisma": "^4.15.0",
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.0.4"
