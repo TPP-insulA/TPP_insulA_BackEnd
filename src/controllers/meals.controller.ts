@@ -46,7 +46,13 @@ export const createMeal = asyncHandler(async (req: Request, res: Response): Prom
     photo
   } = req.body;
 
-  if (!name || !carbs || !protein || !fat || !calories) {
+  if (
+    !name || 
+    carbs === undefined || carbs === null ||
+    protein === undefined || protein === null ||
+    fat === undefined || fat === null ||
+    calories === undefined || calories === null
+  ) {
     res.status(400).json({
       success: false,
       message: "Missing required fields"
@@ -173,10 +179,10 @@ export const updateMeal = asyncHandler(async (req: Request, res: Response): Prom
 
     if (
       (name !== undefined && !name) ||
-      (carbs !== undefined && !carbs) ||
-      (protein !== undefined && !protein) ||
-      (fat !== undefined && !fat) ||
-      (calories !== undefined && !calories)
+      (carbs !== undefined && (carbs === null)) ||
+      (protein !== undefined && (protein === null)) ||
+      (fat !== undefined && (fat === null)) ||
+      (calories !== undefined && (calories === null))
     ) {
       res.status(400).json({
         success: false,

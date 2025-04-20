@@ -29,7 +29,11 @@ exports.getMeals = (0, error_middleware_1.asyncHandler)(async (req, res) => {
 });
 exports.createMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const { name, description, carbs, protein, fat, calories, quantity = 1, timestamp, photo } = req.body;
-    if (!name || !carbs || !protein || !fat || !calories) {
+    if (!name ||
+        carbs === undefined || carbs === null ||
+        protein === undefined || protein === null ||
+        fat === undefined || fat === null ||
+        calories === undefined || calories === null) {
         res.status(400).json({
             success: false,
             message: "Missing required fields"
@@ -134,10 +138,10 @@ exports.updateMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
             return;
         }
         if ((name !== undefined && !name) ||
-            (carbs !== undefined && !carbs) ||
-            (protein !== undefined && !protein) ||
-            (fat !== undefined && !fat) ||
-            (calories !== undefined && !calories)) {
+            (carbs !== undefined && (carbs === null)) ||
+            (protein !== undefined && (protein === null)) ||
+            (fat !== undefined && (fat === null)) ||
+            (calories !== undefined && (calories === null))) {
             res.status(400).json({
                 success: false,
                 message: "Missing required fields"
