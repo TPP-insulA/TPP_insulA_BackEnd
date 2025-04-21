@@ -81,10 +81,10 @@ export const createMeal = asyncHandler(async (req: Request, res: Response): Prom
 
     // Calculate meal totals from food items
     const totals = foods.reduce((acc, food) => ({
-      carbs: acc.carbs + (food.carbs * food.quantity),
-      protein: acc.protein + (food.protein * food.quantity),
-      fat: acc.fat + (food.fat * food.quantity),
-      calories: acc.calories + (food.calories * food.quantity)
+      carbs: acc.carbs + food.carbs,
+      protein: acc.protein + food.protein,
+      fat: acc.fat + food.fat,
+      calories: acc.calories + food.calories
     }), {
       carbs: 0,
       protein: 0,
@@ -201,10 +201,10 @@ export const updateMeal = asyncHandler(async (req: Request, res: Response): Prom
     if (foods && Array.isArray(foods)) {
       // Calculate new totals
       const totals = foods.reduce((acc, food) => ({
-        carbs: acc.carbs + (food.carbs * food.quantity),
-        protein: acc.protein + (food.protein * food.quantity),
-        fat: acc.fat + (food.fat * food.quantity),
-        calories: acc.calories + (food.calories * food.quantity)
+        carbs: acc.carbs + food.carbs,
+        protein: acc.protein + food.protein,
+        fat: acc.fat + food.fat,
+        calories: acc.calories + food.calories
       }), {
         carbs: 0,
         protein: 0,
