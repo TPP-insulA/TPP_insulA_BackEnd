@@ -72,18 +72,49 @@ model InsulinDose {
 }
 
 model Meal {
-  id          String   @id @default(uuid())
+  id            String     @id @default(uuid())
+  name          String
+  description   String?
+  type          MealType
+  carbs         Float     @map("totalCarbs")
+  protein       Float     @map("totalProtein")
+  fat           Float     @map("totalFat") 
+  calories      Float     @map("totalCalories")
+  photo         String?
+  timestamp     DateTime   @default(now())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  mealFoods     MealFood[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Food {
+  id          String     @id @default(uuid())
   name        String
-  description String?
   carbs       Float
   protein     Float
   fat         Float
   calories    Float
-  quantity    Float    @default(1)
+  servingSize Float
   photo       String?
-  timestamp   DateTime @default(now())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  meals       MealFood[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model MealFood {
+  id       String   @id @default(uuid())
+  mealId   String
+  foodId   String
+  quantity Float    @default(1)
+  meal     Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food     Food     @relation(fields: [foodId], references: [id])
+}
+
+enum MealType {
+  breakfast
+  lunch
+  snack
+  dinner
 }
