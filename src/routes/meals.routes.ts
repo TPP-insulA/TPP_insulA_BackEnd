@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getMeals, createMeal, deleteMeal, updateMeal } from '../controllers/meals.controller';
 import { protect } from '../middleware/auth.middleware';
+import { MealType } from '@prisma/client';
 
 /**
  * @swagger
@@ -13,7 +14,7 @@ import { protect } from '../middleware/auth.middleware';
  * @swagger
  * components:
  *   schemas:
- *     Meal:
+ *     FoodItem:
  *       type: object
  *       required:
  *         - name
@@ -21,16 +22,12 @@ import { protect } from '../middleware/auth.middleware';
  *         - protein
  *         - fat
  *         - calories
+ *         - servingSize
+ *         - quantity
  *       properties:
- *         id:
- *           type: string
- *           description: The auto-generated id of the meal
  *         name:
  *           type: string
- *           description: Name of the meal
- *         description:
- *           type: string
- *           description: Optional description of the meal
+ *           description: Name of the food item
  *         carbs:
  *           type: number
  *           description: Carbohydrates in grams
@@ -42,10 +39,38 @@ import { protect } from '../middleware/auth.middleware';
  *           description: Fat in grams
  *         calories:
  *           type: number
- *           description: Total calories
+ *           description: Calories per serving
+ *         servingSize:
+ *           type: number
+ *           description: Serving size in grams
  *         quantity:
  *           type: number
- *           description: Serving size multiplier
+ *           description: Number of servings
+ *     Meal:
+ *       type: object
+ *       required:
+ *         - name
+ *         - type
+ *         - foods
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: The auto-generated id of the meal
+ *         name:
+ *           type: string
+ *           description: Name of the meal
+ *         description:
+ *           type: string
+ *           description: Optional description of the meal
+ *         type:
+ *           type: string
+ *           enum: [breakfast, lunch, snack, dinner]
+ *           description: Type of meal
+ *         foods:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/FoodItem'
+ *           description: Array of food items in the meal
  *         photo:
  *           type: string
  *           description: Optional URL to meal photo
@@ -53,6 +78,18 @@ import { protect } from '../middleware/auth.middleware';
  *           type: string
  *           format: date-time
  *           description: When the meal was consumed
+ *         totalCarbs:
+ *           type: number
+ *           description: Total carbohydrates for the meal (calculated from foods)
+ *         totalProtein:
+ *           type: number
+ *           description: Total protein for the meal (calculated from foods)
+ *         totalFat:
+ *           type: number
+ *           description: Total fat for the meal (calculated from foods)
+ *         totalCalories:
+ *           type: number
+ *           description: Total calories for the meal (calculated from foods)
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -126,10 +163,8 @@ router.get('/', protect, getMeals);
  *             type: object
  *             required:
  *               - name
- *               - carbs
- *               - protein
- *               - fat
- *               - calories
+ *               - type
+ *               - foods
  *             properties:
  *               name:
  *                 type: string
@@ -137,22 +172,15 @@ router.get('/', protect, getMeals);
  *               description:
  *                 type: string
  *                 description: Optional description of the meal
- *               carbs:
- *                 type: number
- *                 description: Carbohydrates in grams
- *               protein:
- *                 type: number
- *                 description: Protein in grams
- *               fat:
- *                 type: number
- *                 description: Fat in grams
- *               calories:
- *                 type: number
- *                 description: Total calories
- *               quantity:
- *                 type: number
- *                 description: Serving size multiplier
- *                 default: 1
+ *               type:
+ *                 type: string
+ *                 enum: [breakfast, lunch, snack, dinner]
+ *                 description: Type of meal
+ *               foods:
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/FoodItem'
+ *                 description: Array of food items in the meal
  *               timestamp:
  *                 type: string
  *                 description: When the meal was consumed
@@ -244,21 +272,15 @@ router.delete('/:id', protect, deleteMeal);
  *               description:
  *                 type: string
  *                 description: Optional description of the meal
- *               carbs:
- *                 type: number
- *                 description: Carbohydrates in grams
- *               protein:
- *                 type: number
- *                 description: Protein in grams
- *               fat:
- *                 type: number
- *                 description: Fat in grams
- *               calories:
- *                 type: number
- *                 description: Total calories
- *               quantity:
- *                 type: number
- *                 description: Serving size multiplier
+ *               type:
+ *                 type: string
+ *                 enum: [breakfast, lunch, snack, dinner]
+ *                 description: Type of meal
+ *               foods:
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/FoodItem'
+ *                 description: Array of food items in the meal
  *               timestamp:
  *                 type: string
  *                 description: When the meal was consumed
