@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateMeal = exports.deleteMeal = exports.createMeal = exports.getMeals = void 0;
+exports.deleteMeal = exports.updateMeal = exports.createMeal = exports.getMeals = void 0;
 const app_1 = require("../app");
 const error_middleware_1 = require("../middleware/error.middleware");
 exports.getMeals = (0, error_middleware_1.asyncHandler)(async (req, res) => {
@@ -21,6 +21,13 @@ exports.getMeals = (0, error_middleware_1.asyncHandler)(async (req, res) => {
         where: whereClause,
         orderBy: { timestamp: 'desc' },
         take: Number(limit),
+        include: {
+            mealFoods: {
+                include: {
+                    food: true
+                }
+            }
+        }
     });
     res.json({
         success: true,
@@ -28,40 +35,62 @@ exports.getMeals = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     });
 });
 exports.createMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
-    const { name, description, carbs, protein, fat, calories, quantity = 1, timestamp, photo } = req.body;
-    if (!name ||
-        carbs === undefined || carbs === null ||
-        protein === undefined || protein === null ||
-        fat === undefined || fat === null ||
-        calories === undefined || calories === null) {
+    const { name, description, type, foods, timestamp, photo } = req.body;
+    if (!name || !type || !foods || !Array.isArray(foods) || foods.length === 0) {
         res.status(400).json({
             success: false,
-            message: "Missing required fields"
+            message: "Missing required fields or invalid foods array"
         });
         return;
     }
     try {
         const mealTimestamp = timestamp ? new Date(timestamp) : new Date();
+        const totals = foods.reduce((acc, food) => ({
+            carbs: acc.carbs + (food.carbs * food.quantity),
+            protein: acc.protein + (food.protein * food.quantity),
+            fat: acc.fat + (food.fat * food.quantity),
+            calories: acc.calories + (food.calories * food.quantity)
+        }), {
+            carbs: 0,
+            protein: 0,
+            fat: 0,
+            calories: 0
+        });
         const meal = await app_1.prisma.meal.create({
-            data: {
-                name,
+            data: Object.assign(Object.assign({ name,
                 description,
-                carbs,
-                protein,
-                fat,
-                calories,
-                quantity,
-                photo,
-                timestamp: mealTimestamp,
-                userId: req.user.id
+                type }, totals), { photo, timestamp: mealTimestamp, userId: req.user.id, mealFoods: {
+                    create: await Promise.all(foods.map(async (food) => {
+                        const createdFood = await app_1.prisma.food.create({
+                            data: {
+                                name: food.name,
+                                carbs: food.carbs,
+                                protein: food.protein,
+                                fat: food.fat,
+                                calories: food.calories,
+                                servingSize: food.servingSize
+                            }
+                        });
+                        return {
+                            quantity: food.quantity,
+                            foodId: createdFood.id
+                        };
+                    }))
+                } }),
+            include: {
+                mealFoods: {
+                    include: {
+                        food: true
+                    }
+                }
             }
         });
         await app_1.prisma.activity.create({
             data: {
                 type: 'meal',
-                value: calories,
-                mealType: 'other',
-                carbs,
+                value: totals.calories,
+                mealType: type,
+                carbs: totals.carbs,
                 timestamp: mealTimestamp,
                 userId: req.user.id
             }
@@ -76,6 +105,96 @@ exports.createMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to create meal"
+        });
+    }
+});
+exports.updateMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const { name, description, type, foods, timestamp, photo } = req.body;
+    try {
+        const existingMeal = await app_1.prisma.meal.findFirst({
+            where: {
+                id,
+                userId: req.user.id
+            },
+            include: {
+                mealFoods: true
+            }
+        });
+        if (!existingMeal) {
+            res.status(404).json({
+                success: false,
+                message: "Meal not found"
+            });
+            return;
+        }
+        let updateData = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (name !== undefined && { name })), (description !== undefined && { description })), (type !== undefined && { type })), (photo !== undefined && { photo })), (timestamp && { timestamp: new Date(timestamp) }));
+        if (foods && Array.isArray(foods)) {
+            const totals = foods.reduce((acc, food) => ({
+                carbs: acc.carbs + (food.carbs * food.quantity),
+                protein: acc.protein + (food.protein * food.quantity),
+                fat: acc.fat + (food.fat * food.quantity),
+                calories: acc.calories + (food.calories * food.quantity)
+            }), {
+                carbs: 0,
+                protein: 0,
+                fat: 0,
+                calories: 0
+            });
+            updateData = Object.assign(Object.assign(Object.assign({}, updateData), totals), { mealFoods: {
+                    deleteMany: {},
+                    create: await Promise.all(foods.map(async (food) => {
+                        const createdFood = await app_1.prisma.food.create({
+                            data: {
+                                name: food.name,
+                                carbs: food.carbs,
+                                protein: food.protein,
+                                fat: food.fat,
+                                calories: food.calories,
+                                servingSize: food.servingSize
+                            }
+                        });
+                        return {
+                            quantity: food.quantity,
+                            foodId: createdFood.id
+                        };
+                    }))
+                } });
+        }
+        const updatedMeal = await app_1.prisma.meal.update({
+            where: { id },
+            data: updateData,
+            include: {
+                mealFoods: {
+                    include: {
+                        food: true
+                    }
+                }
+            }
+        });
+        if (type !== undefined || (foods && Array.isArray(foods))) {
+            await app_1.prisma.activity.updateMany({
+                where: {
+                    type: 'meal',
+                    userId: req.user.id,
+                    timestamp: existingMeal.timestamp
+                },
+                data: Object.assign(Object.assign({}, (type !== undefined && { mealType: type })), (foods !== undefined && {
+                    value: updateData.calories,
+                    carbs: updateData.carbs
+                }))
+            });
+        }
+        res.json({
+            success: true,
+            data: updatedMeal
+        });
+    }
+    catch (error) {
+        console.error('Error updating meal:', error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to update meal"
         });
     }
 });
@@ -117,62 +236,6 @@ exports.deleteMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to delete meal"
-        });
-    }
-});
-exports.updateMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
-    const { id } = req.params;
-    const { name, description, carbs, protein, fat, calories, quantity, timestamp, photo } = req.body;
-    try {
-        const existingMeal = await app_1.prisma.meal.findFirst({
-            where: {
-                id,
-                userId: req.user.id
-            }
-        });
-        if (!existingMeal) {
-            res.status(404).json({
-                success: false,
-                message: "Meal not found"
-            });
-            return;
-        }
-        if ((name !== undefined && !name) ||
-            (carbs !== undefined && (carbs === null)) ||
-            (protein !== undefined && (protein === null)) ||
-            (fat !== undefined && (fat === null)) ||
-            (calories !== undefined && (calories === null))) {
-            res.status(400).json({
-                success: false,
-                message: "Missing required fields"
-            });
-            return;
-        }
-        const mealTimestamp = timestamp ? new Date(timestamp) : undefined;
-        const updatedMeal = await app_1.prisma.meal.update({
-            where: { id },
-            data: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (name !== undefined && { name })), (description !== undefined && { description })), (carbs !== undefined && { carbs })), (protein !== undefined && { protein })), (fat !== undefined && { fat })), (calories !== undefined && { calories })), (quantity !== undefined && { quantity })), (photo !== undefined && { photo })), (mealTimestamp && { timestamp: mealTimestamp }))
-        });
-        if (calories !== undefined || carbs !== undefined) {
-            await app_1.prisma.activity.updateMany({
-                where: {
-                    type: 'meal',
-                    userId: req.user.id,
-                    timestamp: existingMeal.timestamp
-                },
-                data: Object.assign(Object.assign({}, (calories !== undefined && { value: calories })), (carbs !== undefined && { carbs }))
-            });
-        }
-        res.json({
-            success: true,
-            data: updatedMeal
-        });
-    }
-    catch (error) {
-        console.error('Error updating meal:', error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to update meal"
         });
     }
 });
