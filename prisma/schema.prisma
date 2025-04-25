@@ -56,6 +56,7 @@ model Activity {
   mealType  String?
   carbs     Float?
   units     Float?
+  notes     String?
   timestamp DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])

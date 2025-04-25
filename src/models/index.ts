@@ -105,6 +105,7 @@ export interface CreateActivityInput {
   mealType?: MealType;
   carbs?: number;
   units?: number;
+  notes?: string;
 }
 
 // Insulin types
