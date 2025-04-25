@@ -109,10 +109,41 @@ export interface CreateActivityInput {
 }
 
 // Insulin types
+export type InsulinType = 'rapid' | 'long';
+export type AccuracyType = 'Accurate' | 'Slightly low' | 'Low';
+
 export interface CreateInsulinDoseInput {
   units: number;
-  glucoseLevel?: number;
-  carbIntake?: number;
+  type: InsulinType;
+  timestamp?: Date;
+  notes?: string;
+}
+
+export interface InsulinCalculationInput {
+  currentGlucose: number;
+  carbs: number;
+  activity: string;
+  timeOfDay: string;
+}
+
+export interface InsulinPredictionInput {
+  mealType: string;
+  carbs: number;
+  glucose: number;
+  units: number;
+  resultingGlucose: number;
+}
+
+export interface InsulinSettingsInput {
+  carbRatio?: number;
+  correctionFactor?: number;
+  targetGlucose?: {
+    min: number;
+    max: number;
+  };
+  activeInsulin?: {
+    duration: number;
+  };
 }
 
 // Profile types

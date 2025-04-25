@@ -38,6 +38,7 @@ export const createActivity = asyncHandler(async (req: Request, res: Response) =
     await prisma.insulinDose.create({
       data: {
         units,
+        type: 'insulin',
         glucoseLevel: value,
         carbIntake: carbs,
         userId: req.user.id,
