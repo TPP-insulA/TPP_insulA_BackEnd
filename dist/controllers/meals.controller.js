@@ -46,10 +46,10 @@ exports.createMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     try {
         const mealTimestamp = timestamp ? new Date(timestamp) : new Date();
         const totals = foods.reduce((acc, food) => ({
-            carbs: acc.carbs + (food.carbs * food.quantity),
-            protein: acc.protein + (food.protein * food.quantity),
-            fat: acc.fat + (food.fat * food.quantity),
-            calories: acc.calories + (food.calories * food.quantity)
+            carbs: acc.carbs + food.carbs,
+            protein: acc.protein + food.protein,
+            fat: acc.fat + food.fat,
+            calories: acc.calories + food.calories
         }), {
             carbs: 0,
             protein: 0,
@@ -131,10 +131,10 @@ exports.updateMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
         let updateData = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (name !== undefined && { name })), (description !== undefined && { description })), (type !== undefined && { type })), (photo !== undefined && { photo })), (timestamp && { timestamp: new Date(timestamp) }));
         if (foods && Array.isArray(foods)) {
             const totals = foods.reduce((acc, food) => ({
-                carbs: acc.carbs + (food.carbs * food.quantity),
-                protein: acc.protein + (food.protein * food.quantity),
-                fat: acc.fat + (food.fat * food.quantity),
-                calories: acc.calories + (food.calories * food.quantity)
+                carbs: acc.carbs + food.carbs,
+                protein: acc.protein + food.protein,
+                fat: acc.fat + food.fat,
+                calories: acc.calories + food.calories
             }), {
                 carbs: 0,
                 protein: 0,

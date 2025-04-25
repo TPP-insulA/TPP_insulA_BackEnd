@@ -54,6 +54,7 @@ exports.createGlucoseReading = (0, error_middleware_1.asyncHandler)(async (req, 
         data: {
             type: 'glucose',
             value,
+            notes,
             timestamp: reading.timestamp,
             userId: req.user.id,
         },
@@ -87,16 +88,14 @@ exports.updateGlucoseReading = (0, error_middleware_1.asyncHandler)(async (req, 
             notes: notes !== undefined ? notes : reading.notes,
         },
     });
-    if (value !== undefined && value !== reading.value) {
+    if (value !== undefined || notes !== undefined) {
         await app_1.prisma.activity.updateMany({
             where: {
                 type: 'glucose',
                 userId: req.user.id,
                 timestamp: reading.timestamp,
             },
-            data: {
-                value,
-            },
+            data: Object.assign(Object.assign({}, (value !== undefined && { value })), (notes !== undefined && { notes })),
         });
     }
     res.json(updatedReading);
