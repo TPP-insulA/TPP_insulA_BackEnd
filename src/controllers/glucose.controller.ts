@@ -66,11 +66,12 @@ export const createGlucoseReading = asyncHandler(async (req: Request, res: Respo
     },
   });
   
-  // Also create an activity record for this reading
+  // Create activity record with notes
   await prisma.activity.create({
     data: {
       type: 'glucose',
       value,
+      notes,
       timestamp: reading.timestamp,
       userId: req.user.id,
     },
@@ -113,8 +114,8 @@ export const updateGlucoseReading = asyncHandler(async (req: Request, res: Respo
     },
   });
   
-  // If value was updated, also update the corresponding activity
-  if (value !== undefined && value !== reading.value) {
+  // Update activity including notes if either value or notes changed
+  if (value !== undefined || notes !== undefined) {
     await prisma.activity.updateMany({
       where: {
         type: 'glucose',
@@ -122,7 +123,8 @@ export const updateGlucoseReading = asyncHandler(async (req: Request, res: Respo
         timestamp: reading.timestamp,
       },
       data: {
-        value,
+        ...(value !== undefined && { value }),
+        ...(notes !== undefined && { notes }),
       },
     });
   }
