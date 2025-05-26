@@ -31,6 +31,7 @@ exports.createActivity = (0, error_middleware_1.asyncHandler)(async (req, res) =
         await app_1.prisma.insulinDose.create({
             data: {
                 units,
+                type: 'insulin',
                 glucoseLevel: value,
                 carbIntake: carbs,
                 userId: req.user.id,

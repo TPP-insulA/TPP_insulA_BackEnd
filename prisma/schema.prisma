@@ -30,6 +30,7 @@ model User {
   insulinCalculations InsulinCalculation[]
   insulinSettings InsulinSettings?
   meals         Meal[]     
+  insulinPredictions InsulinPrediction[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -148,6 +149,25 @@ model MealFood {
   quantity Float    @default(1)
   meal     Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
   food     Food     @relation(fields: [foodId], references: [id])
+}
+
+model InsulinPrediction {
+  id              String   @id @default(uuid())
+  date            DateTime
+  cgmPrev         Float[]
+  glucoseObjective Float
+  carbs           Float
+  insulinOnBoard  Float
+  sleepLevel      Float
+  workLevel       Float
+  activityLevel   Float
+  recommendedDose Float
+  applyDose       Float?
+  cgmPost         Float[]
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 enum MealType {

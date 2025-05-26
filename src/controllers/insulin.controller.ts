@@ -3,12 +3,13 @@ import { prisma } from '../app';
 import { asyncHandler } from '../middleware/error.middleware';
 import { 
   CreateInsulinDoseInput, 
-  InsulinCalculationInput, 
+  InsulinPredictionData, 
   InsulinPredictionInput,
   InsulinSettingsInput,
   InsulinType,
   AccuracyType
 } from '../models';
+import { getLastDigit } from '../utils/string.utils';
 
 export const createInsulinDose = asyncHandler(async (req: Request, res: Response) => {
   const { units, type, timestamp, notes }: CreateInsulinDoseInput = req.body;
@@ -85,9 +86,15 @@ export const getInsulinDose = asyncHandler(async (req: Request, res: Response) =
 
 export const updateInsulinDose = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { units, glucoseLevel, carbIntake } = req.body;
+  const { 
+    applyDose,
+    cgmPost,
+  } = req.body;
+  console.log('Updating insulin dose with ID:', id);
+  console.log('Apply dose:', applyDose);
+  console.log('CGM post:', cgmPost);
   
-  const dose = await prisma.insulinDose.findFirst({
+  const dose = await prisma.insulinPrediction.findFirst({
     where: {
       id,
       userId: req.user.id,
@@ -95,40 +102,35 @@ export const updateInsulinDose = asyncHandler(async (req: Request, res: Response
   });
   
   if (!dose) {
+    console.log('Dose not found for ID:', id);
+    console.log('User ID:', req.user.id);
     res.status(404);
     throw new Error('Insulin dose not found');
   }
   
-  const updatedDose = await prisma.insulinDose.update({
+  const updatedDose = await prisma.insulinPrediction.update({
     where: { id },
     data: {
-      units: units !== undefined ? units : dose.units,
-      glucoseLevel: glucoseLevel !== undefined ? glucoseLevel : dose.glucoseLevel,
-      carbIntake: carbIntake !== undefined ? carbIntake : dose.carbIntake,
+      applyDose,
+      cgmPost,
     },
   });
+
+  const responseData = {
+    applyDose: updatedDose.applyDose,
+    cgmPost: updatedDose.cgmPost,
+  };
+  console.log('Updated dose:', responseData);
   
-  // Also update the corresponding activity
-  await prisma.activity.updateMany({
-    where: {
-      type: 'insulin',
-      userId: req.user.id,
-      timestamp: dose.timestamp,
-    },
-    data: {
-      value: glucoseLevel !== undefined ? glucoseLevel : dose.glucoseLevel,
-      carbs: carbIntake !== undefined ? carbIntake : dose.carbIntake,
-      units: units !== undefined ? units : dose.units,
-    },
-  });
-  
-  res.json(updatedDose);
+  res.json(responseData);
 });
 
-export const deleteInsulinDose = asyncHandler(async (req: Request, res: Response) => {
+export const deleteInsulinPrediction = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
+  console.log('Deleting insulin prediction with ID:', id);
+  console.log('Deleting insulin prediction with user ID:', req.user.id);
   
-  const dose = await prisma.insulinDose.findFirst({
+  const dose = await prisma.insulinPrediction.findFirst({
     where: {
       id,
       userId: req.user.id,
@@ -137,83 +139,68 @@ export const deleteInsulinDose = asyncHandler(async (req: Request, res: Response
   
   if (!dose) {
     res.status(404);
-    throw new Error('Insulin dose not found');
+    throw new Error('Insulin prediction not found');
   }
   
-  await prisma.$transaction([
-    prisma.insulinDose.delete({
-      where: { id },
-    }),
-    prisma.activity.deleteMany({
-      where: {
-        type: 'insulin',
-        userId: req.user.id,
-        timestamp: dose.timestamp,
-      },
-    }),
-  ]);
+  await prisma.insulinPrediction.delete({
+    where: { id },
+  });
   
   res.json({ success: true });
 });
 
 export const calculateInsulinDose = asyncHandler(async (req: Request, res: Response) => {
-  const { currentGlucose, carbs, activity, timeOfDay }: InsulinCalculationInput = req.body;
-
-  // Get user's insulin settings
-  const settings = await prisma.insulinSettings.findUnique({
-    where: { userId: req.user.id }
-  });
-
-  if (!settings) {
-    res.status(400);
-    throw new Error('Insulin settings not configured');
-  }
-
-  // Calculate correction dose
-  const correctionDose = (currentGlucose - settings.targetGlucoseMin) / settings.correctionFactor;
+  const { 
+    date,
+    cgmPrev,
+    glucoseObjective,
+    carbs,
+    insulinOnBoard,
+    sleepLevel,
+    workLevel,
+    activityLevel,
+  }: InsulinPredictionData = req.body;
   
-  // Calculate meal dose
-  const mealDose = carbs / settings.carbRatio;
-  
-  // Calculate activity adjustment (simplified example)
-  const activityAdjustment = activity === 'high' ? -0.2 : 
-                            activity === 'moderate' ? -0.1 : 0;
-  
-  // Calculate time adjustment (simplified example)
-  const timeAdjustment = timeOfDay === 'dawn' ? 0.1 : 
-                        timeOfDay === 'evening' ? -0.1 : 0;
-  
-  // Calculate total dose
-  const total = Math.max(0, 
-    (correctionDose + mealDose) * 
-    (1 + activityAdjustment + timeAdjustment)
-  );
+  const randomNumber = String(Math.random());
+  //ultimo digito de random number
+  const recommendedDose = Number(getLastDigit(randomNumber)) || 1;
+  console.log('Recommended dose:', recommendedDose);
 
+  const data = {
+    userId: req.user.id,
+    date: new Date(date),
+    cgmPrev: cgmPrev,
+    glucoseObjective: glucoseObjective,
+    carbs: carbs,
+    insulinOnBoard: insulinOnBoard,
+    sleepLevel: sleepLevel,
+    workLevel: workLevel,
+    activityLevel: activityLevel,
+    recommendedDose: recommendedDose,
+    applyDose: null,
+    cgmPost: []
+  };
+  
   // Create calculation record
-  await prisma.insulinCalculation.create({
-    data: {
-      userId: req.user.id,
-      currentGlucose,
-      carbs,
-      activity,
-      timeOfDay,
-      total,
-      correctionDose,
-      mealDose,
-      activityAdjustment,
-      timeAdjustment
-    }
+  const prismaResult = await prisma.insulinPrediction.create({
+    data
   });
+  const predictionId = prismaResult.id;
 
-  res.json({
-    total: Math.round(total * 10) / 10,
-    breakdown: {
-      correctionDose: Math.round(correctionDose * 10) / 10,
-      mealDose: Math.round(mealDose * 10) / 10,
-      activityAdjustment: Math.round(activityAdjustment * 100) / 100,
-      timeAdjustment: Math.round(timeAdjustment * 100) / 100
-    }
+  await prisma.activity.create({
+    data: {
+      type: 'insulin',
+      value: recommendedDose,
+      timestamp: new Date(date),
+      userId: req.user.id,
+    },
   });
+  // Remove userId from the response and add predictionId as id
+  const responseData = {
+    ...data,
+    id: predictionId,
+  };
+  res.json(responseData);
 });
 
 interface PredictionData {
@@ -227,57 +214,13 @@ interface PredictionData {
 }
 
 export const getInsulinPredictions = asyncHandler(async (req: Request, res: Response) => {
-  const { limit = 10 } = req.query;
-
-  const predictions = await prisma.insulinCalculation.findMany({
+  const predictions = await prisma.insulinPrediction.findMany({
     where: { 
       userId: req.user.id,
-      resultingGlucose: { not: null },
-      accuracy: { not: null }
     },
-    orderBy: { timestamp: 'desc' },
-    take: Number(limit),
-    select: {
-      id: true,
-      accuracy: true,
-      timestamp: true,
-      timeOfDay: true,
-      carbs: true,
-      currentGlucose: true,
-      total: true
-    }
-  }) as PredictionData[];
-
-  // Calculate accuracy percentage
-  const accurateCount = predictions.filter(p => p.accuracy === 'Accurate').length;
-  const accuracyPercentage = predictions.length > 0 
-    ? (accurateCount / predictions.length) * 100 
-    : 0;
-
-  // Calculate trend
-  const previousAccuracies = predictions.map(p => p.accuracy === 'Accurate' ? 1 : 0);
-  const trend = previousAccuracies.length > 1
-    ? (previousAccuracies[0] - previousAccuracies[previousAccuracies.length - 1])
-    : 0;
-
-  res.json({
-    accuracy: {
-      percentage: Math.round(accuracyPercentage * 10) / 10,
-      trend: {
-        value: Math.abs(trend) * 100,
-        direction: trend >= 0 ? 'up' : 'down'
-      }
-    },
-    predictions: predictions.map(p => ({
-      id: p.id,
-      mealType: p.timeOfDay,
-      date: p.timestamp,
-      carbs: p.carbs,
-      glucose: p.currentGlucose,
-      units: p.total,
-      accuracy: p.accuracy
-    }))
+    orderBy: { date: 'desc' },
   });
+  res.json(predictions);
 });
 
 export const logPredictionResult = asyncHandler(async (req: Request, res: Response) => {

@@ -3,7 +3,7 @@ import {
   createInsulinDose,
   getInsulinDoses,
   updateInsulinDose,
-  deleteInsulinDose,
+  deleteInsulinPrediction,
   calculateInsulinDose,
   getInsulinPredictions,
   logPredictionResult,
@@ -148,33 +148,6 @@ router.use(apiLimiter);
 router.route('/doses')
   .get(getInsulinDoses)
   .post(createInsulinDose);
-
-/**
- * @swagger
- * /api/insulin/doses/{id}:
- *   delete:
- *     summary: Delete specific insulin dose
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Dose deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- */
-router.delete('/doses/:id', deleteInsulinDose);
 
 /**
  * @swagger
@@ -419,6 +392,6 @@ router.get('/', protect, getInsulinDoses);
  *         description: Insulin dose deleted successfully
  */
 router.put('/:id', protect, updateInsulinDose);
-router.delete('/:id', protect, deleteInsulinDose);
+router.delete('/:id', protect, deleteInsulinPrediction);
 
 export default router;

@@ -167,5 +167,23 @@ export interface UpdateProfileImageInput {
   imageUrl: string;
 }
 
+export interface InsulinPredictionData {
+  date: string; // UTC ISO string
+  cgmPrev: number[];
+  glucoseObjective: number;
+  carbs: number;
+  insulinOnBoard: number;
+  sleepLevel: number;
+  workLevel: number;
+  activityLevel: number;
+}
+
+export interface InsulinPredictionResult extends InsulinPredictionData {
+  id: string;
+  recommendedDose: number;
+  applyDose?: number;
+  cgmPost: number[];
+}
+
 // Re-export prisma instance from app.ts
 export { prisma };
