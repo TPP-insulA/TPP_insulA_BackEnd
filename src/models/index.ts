@@ -48,15 +48,6 @@ export type Activity = {
   userId: string;
 }
 
-export type InsulinDose = {
-  id: string;
-  units: number;
-  glucoseLevel?: number | null;
-  carbIntake?: number | null;
-  timestamp: Date;
-  userId: string;
-}
-
 // Auth types
 export interface RegisterUserInput {
   email: string;
@@ -108,44 +99,6 @@ export interface CreateActivityInput {
   notes?: string;
 }
 
-// Insulin types
-export type InsulinType = 'rapid' | 'long';
-export type AccuracyType = 'Accurate' | 'Slightly low' | 'Low';
-
-export interface CreateInsulinDoseInput {
-  units: number;
-  type: InsulinType;
-  timestamp?: Date;
-  notes?: string;
-}
-
-export interface InsulinCalculationInput {
-  currentGlucose: number;
-  carbs: number;
-  activity: string;
-  timeOfDay: string;
-}
-
-export interface InsulinPredictionInput {
-  mealType: string;
-  carbs: number;
-  glucose: number;
-  units: number;
-  resultingGlucose: number;
-}
-
-export interface InsulinSettingsInput {
-  carbRatio?: number;
-  correctionFactor?: number;
-  targetGlucose?: {
-    min: number;
-    max: number;
-  };
-  activeInsulin?: {
-    duration: number;
-  };
-}
-
 // Profile types
 export interface UpdateProfileInput {
   email?: string;
@@ -167,6 +120,7 @@ export interface UpdateProfileImageInput {
   imageUrl: string;
 }
 
+//Insulin types
 export interface InsulinPredictionData {
   date: string; // UTC ISO string
   cgmPrev: number[];

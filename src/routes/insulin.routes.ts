@@ -1,14 +1,9 @@
 import { Router } from 'express';
 import {
-  createInsulinDose,
-  getInsulinDoses,
-  updateInsulinDose,
+  updateInsulinPrediction,
   deleteInsulinPrediction,
-  calculateInsulinDose,
+  calculateInsulinPrediction,
   getInsulinPredictions,
-  logPredictionResult,
-  getInsulinSettings,
-  updateInsulinSettings
 } from '../controllers/insulin.controller';
 import { protect } from '../middleware/auth.middleware';
 import rateLimit from 'express-rate-limit';
@@ -24,33 +19,171 @@ import rateLimit from 'express-rate-limit';
  * @swagger
  * components:
  *   schemas:
- *     InsulinDose:
+ *     InsulinPrediction:
  *       type: object
  *       required:
- *         - units
- *         - timestamp
- *         - type
+ *         - date
+ *         - cgmPrev
+ *         - glucoseObjective
+ *         - carbs
+ *         - insulinOnBoard
+ *         - sleepLevel
+ *         - workLevel
+ *         - activityLevel
+ *         - recommendedDose
  *       properties:
  *         id:
  *           type: string
- *           description: The auto-generated id of the dose
- *         units:
- *           type: number
- *           description: Number of insulin units
- *         timestamp:
+ *           description: The auto-generated id of the prediction
+ *         date:
  *           type: string
  *           format: date-time
- *           description: When the dose was administered
- *         type:
+ *           description: Date and time of the prediction
+ *         cgmPrev:
+ *           type: array
+ *           items:
+ *             type: number
+ *           description: Previous CGM readings
+ *         glucoseObjective:
+ *           type: number
+ *           description: Glucose target value
+ *         carbs:
+ *           type: number
+ *           description: Carbohydrates intake
+ *         insulinOnBoard:
+ *           type: number
+ *           description: Insulin on board
+ *         sleepLevel:
+ *           type: number
+ *           description: Sleep level
+ *         workLevel:
+ *           type: number
+ *           description: Work level
+ *         activityLevel:
+ *           type: number
+ *           description: Activity level
+ *         recommendedDose:
+ *           type: number
+ *           description: Recommended insulin dose
+ *         applyDose:
+ *           type: number
+ *           nullable: true
+ *           description: Actual dose applied (if any)
+ *         cgmPost:
+ *           type: array
+ *           items:
+ *             type: number
+ *           description: CGM readings after dose (if any)
+ */
+
+/**
+ * @swagger
+ * /api/insulin/calculate:
+ *   post:
+ *     summary: Calcular y registrar una predicción de insulina
+ *     tags: [Insulin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/InsulinPrediction'
+ *     responses:
+ *       200:
+ *         description: Predicción de insulina calculada y registrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/InsulinPrediction'
+ */
+
+/**
+ * @swagger
+ * /api/insulin/predictions:
+ *   get:
+ *     summary: Obtener predicciones de insulina del usuario
+ *     tags: [Insulin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de predicciones de insulina
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/InsulinPrediction'
+ */
+
+/**
+ * @swagger
+ * /api/insulin/{id}:
+ *   put:
+ *     summary: Actualizar una predicción de insulina
+ *     tags: [Insulin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
  *           type: string
- *           enum: [RAPID, LONG]
- *           description: Type of insulin
- *         notes:
+ *         description: ID de la predicción de insulina
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               applyDose:
+ *                 type: number
+ *                 description: Dosis aplicada
+ *               cgmPost:
+ *                 type: array
+ *                 items:
+ *                   type: number
+ *                 description: Lecturas CGM posteriores
+ *     responses:
+ *       200:
+ *         description: Predicción de insulina actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 applyDose:
+ *                   type: number
+ *                 cgmPost:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *   delete:
+ *     summary: Eliminar una predicción de insulina
+ *     tags: [Insulin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
  *           type: string
- *           description: Optional notes about the dose
- *         userId:
- *           type: string
- *           description: ID of the user who took the dose
+ *         description: ID de la predicción de insulina
+ *     responses:
+ *       200:
+ *         description: Predicción de insulina eliminada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
  */
 
 const router = Router();
@@ -66,296 +199,55 @@ router.use(apiLimiter);
 
 /**
  * @swagger
- * /api/insulin/doses:
- *   get:
- *     summary: Get user's insulin doses with optional date range
+ * /api/insulin/calculate:
+ *   post:
+ *     summary: Calcular y registrar una predicción de insulina
  *     tags: [Insulin]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Start date for filtering doses
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *         description: End date for filtering doses
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Maximum number of doses to return
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/InsulinPrediction'
  *     responses:
  *       200:
- *         description: List of insulin doses
+ *         description: Predicción de insulina calculada y registrada
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 doses:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id: 
- *                         type: string
- *                       units:
- *                         type: number
- *                       type:
- *                         type: string
- *                         enum: [rapid, long]
- *                       timestamp:
- *                         type: string
- *                         format: date-time
- *                       notes:
- *                         type: string
- *   post:
- *     summary: Add new insulin dose
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - units
- *               - type
- *             properties:
- *               units:
- *                 type: number
- *               type:
- *                 type: string
- *                 enum: [rapid, long]
- *               timestamp:
- *                 type: string
- *                 format: date-time
- *               notes:
- *                 type: string
- *     responses:
- *       201:
- *         description: Insulin dose created
+ *               $ref: '#/components/schemas/InsulinPrediction'
  */
-router.route('/doses')
-  .get(getInsulinDoses)
-  .post(createInsulinDose);
-
-/**
- * @swagger
- * /api/insulin/calculate:
- *   post:
- *     summary: Calculate recommended insulin dose
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - currentGlucose
- *               - carbs
- *               - activity
- *               - timeOfDay
- *             properties:
- *               currentGlucose:
- *                 type: number
- *               carbs:
- *                 type: number
- *               activity:
- *                 type: string
- *               timeOfDay:
- *                 type: string
- *     responses:
- *       200:
- *         description: Calculated insulin dose
- */
-router.post('/calculate', calculateInsulinDose);
+router.post('/calculate', calculateInsulinPrediction);
 
 /**
  * @swagger
  * /api/insulin/predictions:
  *   get:
- *     summary: Get recent predictions and accuracy
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *     responses:
- *       200:
- *         description: List of predictions with accuracy metrics
- *   post:
- *     summary: Log prediction result for accuracy tracking
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - mealType
- *               - carbs
- *               - glucose
- *               - units
- *               - resultingGlucose
- *             properties:
- *               mealType:
- *                 type: string
- *               carbs:
- *                 type: number
- *               glucose:
- *                 type: number
- *               units:
- *                 type: number
- *               resultingGlucose:
- *                 type: number
- *     responses:
- *       201:
- *         description: Prediction logged successfully
- */
-router.route('/predictions')
-  .get(getInsulinPredictions)
-  .post(logPredictionResult);
-
-/**
- * @swagger
- * /api/insulin/settings:
- *   get:
- *     summary: Get user's insulin calculation settings
+ *     summary: Obtener predicciones de insulina del usuario
  *     tags: [Insulin]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: User's insulin settings
- *   put:
- *     summary: Update user's insulin calculation settings
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               carbRatio:
- *                 type: number
- *               correctionFactor:
- *                 type: number
- *               targetGlucose:
- *                 type: object
- *                 properties:
- *                   min:
- *                     type: number
- *                   max:
- *                     type: number
- *               activeInsulin:
- *                 type: object
- *                 properties:
- *                   duration:
- *                     type: number
- *     responses:
- *       200:
- *         description: Settings updated successfully
- */
-router.route('/settings')
-  .get(getInsulinSettings)
-  .put(updateInsulinSettings);
-
-/**
- * @swagger
- * /api/insulin:
- *   post:
- *     summary: Record a new insulin dose
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - units
- *               - timestamp
- *               - type
- *             properties:
- *               units:
- *                 type: number
- *               timestamp:
- *                 type: string
- *                 format: date-time
- *               type:
- *                 type: string
- *                 enum: [RAPID, LONG]
- *               notes:
- *                 type: string
- *     responses:
- *       201:
- *         description: Insulin dose recorded successfully
- *   get:
- *     summary: Get all insulin doses
- *     tags: [Insulin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Start date for filtering doses
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *         description: End date for filtering doses
- *       - in: query
- *         name: type
- *         schema:
- *           type: string
- *           enum: [RAPID, LONG]
- *         description: Filter by insulin type
- *     responses:
- *       200:
- *         description: List of insulin doses
+ *         description: Lista de predicciones de insulina
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/InsulinDose'
+ *                 $ref: '#/components/schemas/InsulinPrediction'
  */
-router.post('/', protect, createInsulinDose);
-router.get('/', protect, getInsulinDoses);
+router.route('/predictions')
+  .get(getInsulinPredictions)
+
 
 /**
  * @swagger
  * /api/insulin/{id}:
  *   put:
- *     summary: Update an insulin dose
+ *     summary: Actualizar una predicción de insulina
  *     tags: [Insulin]
  *     security:
  *       - bearerAuth: []
@@ -365,18 +257,38 @@ router.get('/', protect, getInsulinDoses);
  *         required: true
  *         schema:
  *           type: string
- *         description: ID of the insulin dose
+ *         description: ID de la predicción de insulina
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/InsulinDose'
+ *             type: object
+ *             properties:
+ *               applyDose:
+ *                 type: number
+ *                 description: Dosis aplicada
+ *               cgmPost:
+ *                 type: array
+ *                 items:
+ *                   type: number
+ *                 description: Lecturas CGM posteriores
  *     responses:
  *       200:
- *         description: Insulin dose updated successfully
+ *         description: Predicción de insulina actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 applyDose:
+ *                   type: number
+ *                 cgmPost:
+ *                   type: array
+ *                   items:
+ *                     type: number
  *   delete:
- *     summary: Delete an insulin dose
+ *     summary: Eliminar una predicción de insulina
  *     tags: [Insulin]
  *     security:
  *       - bearerAuth: []
@@ -386,12 +298,19 @@ router.get('/', protect, getInsulinDoses);
  *         required: true
  *         schema:
  *           type: string
- *         description: ID of the insulin dose
+ *         description: ID de la predicción de insulina
  *     responses:
  *       200:
- *         description: Insulin dose deleted successfully
+ *         description: Predicción de insulina eliminada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
  */
-router.put('/:id', protect, updateInsulinDose);
+router.put('/:id', protect, updateInsulinPrediction);
 router.delete('/:id', protect, deleteInsulinPrediction);
 
 export default router;
