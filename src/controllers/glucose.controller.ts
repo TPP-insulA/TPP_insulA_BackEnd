@@ -32,24 +32,6 @@ export const getGlucoseReadings = asyncHandler(async (req: Request, res: Respons
   res.json(readings);
 });
 
-export const getGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  
-  const reading = await prisma.glucoseReading.findFirst({
-    where: { 
-      id, 
-      userId: req.user.id 
-    },
-  });
-  
-  if (!reading) {
-    res.status(404);
-    throw new Error('Glucose reading not found');
-  }
-  
-  res.json(reading);
-});
-
 export const createGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
   const { value, notes }: CreateGlucoseReadingInput = req.body;
   
@@ -90,81 +72,3 @@ export const createGlucoseReading = asyncHandler(async (req: Request, res: Respo
   });
 });
 
-export const updateGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { value, notes } = req.body;
-  
-  const reading = await prisma.glucoseReading.findFirst({
-    where: { 
-      id, 
-      userId: req.user.id 
-    },
-  });
-  
-  if (!reading) {
-    res.status(404);
-    throw new Error('Glucose reading not found');
-  }
-  
-  const updatedReading = await prisma.glucoseReading.update({
-    where: { id },
-    data: {
-      value: value !== undefined ? value : reading.value,
-      notes: notes !== undefined ? notes : reading.notes,
-    },
-  });
-  
-  // Update activity including notes if either value or notes changed
-  if (value !== undefined || notes !== undefined) {
-    await prisma.activity.updateMany({
-      where: {
-        type: 'glucose',
-        userId: req.user.id,
-        timestamp: reading.timestamp,
-      },
-      data: {
-        ...(value !== undefined && { value }),
-        ...(notes !== undefined && { notes }),
-      },
-    });
-  }
-  
-  res.json(updatedReading);
-});
-
-export const deleteGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  
-  const reading = await prisma.glucoseReading.findFirst({
-    where: { 
-      id, 
-      userId: req.user.id 
-    },
-  });
-  
-  if (!reading) {
-    res.status(404);
-    throw new Error('Glucose reading not found');
-  }
-  
-  await prisma.$transaction([
-    // Delete the glucose reading
-    prisma.glucoseReading.delete({
-      where: { id },
-    }),
-    // Delete the corresponding activity
-    prisma.activity.deleteMany({
-      where: {
-        type: 'glucose',
-        userId: req.user.id,
-        timestamp: reading.timestamp,
-      },
-    }),
-  ]);
-  
-  res.json({ message: 'Glucose reading deleted' });
-});
-
-export const getGlucoseStats = asyncHandler(async (req: Request, res: Response) => {
-  // ...existing code...
-});
