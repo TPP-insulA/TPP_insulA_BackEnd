@@ -90,14 +90,6 @@ export interface UpdateGlucoseTargetInput {
 export type ActivityType = 'glucose' | 'meal' | 'insulin';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
-export interface CreateActivityInput {
-  type: ActivityType;
-  value?: number;
-  mealType?: MealType;
-  carbs?: number;
-  units?: number;
-  notes?: string;
-}
 
 // Profile types
 export interface UpdateProfileInput {
