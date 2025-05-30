@@ -16,6 +16,7 @@ import insulinRoutes from './routes/insulin.routes';
 import foodRoutes from './routes/food.routes';
 import debugRoutes from './routes/debug.routes';
 import mealsRoutes from './routes/meals.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
 // Middleware
 import { errorHandler, notFound } from './middleware/error.middleware';
@@ -96,6 +97,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/insulin', insulinRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/meals', mealsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Root path redirect to API docs
 app.get('/', (req: Request, res: Response) => {

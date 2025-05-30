@@ -82,6 +82,22 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       glucoseProfile
     });
 
+    // Set glucose target values
+    let minTarget = 70;
+    let maxTarget = 180;
+    
+    switch (glucoseProfile) {
+      case 'hypo':
+        minTarget = 80;
+        maxTarget = 160;
+        break;
+      case 'hyper':
+        minTarget = 100;
+        maxTarget = 200;
+        break;
+      // normal uses default values
+    }
+
     const userData = {
       email: String(email),
       firstName: String(firstName),
@@ -93,7 +109,9 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       weight: parseFloat(String(weight)),
       height: parseFloat(String(height)),
       glucoseProfile: String(glucoseProfile),
-      diabetesType: "type1"
+      diabetesType: "type1",
+      minTargetGlucose: minTarget,
+      maxTargetGlucose: maxTarget,
     };
 
     try {
@@ -102,32 +120,6 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       });
 
       console.log('[registerUser] User created successfully:', user.id);
-
-      // Set glucose target values
-      let minTarget = 70;
-      let maxTarget = 180;
-      
-      switch (glucoseProfile) {
-        case 'hypo':
-          minTarget = 80;
-          maxTarget = 160;
-          break;
-        case 'hyper':
-          minTarget = 100;
-          maxTarget = 200;
-          break;
-        // normal uses default values
-      }
-
-      await prisma.glucoseTarget.create({
-        data: {
-          minTarget,
-          maxTarget,
-          userId: user.id,
-        },
-      });
-
-      console.log('[registerUser] Glucose target created for user:', user.id);
 
       const userWithoutPassword = excludePassword(user);
       
@@ -196,9 +188,6 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
   console.log('[getUserProfile] Fetching profile for user:', req.user.id);
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
-    include: {
-      glucoseTarget: true,
-    },
   });
 
   if (!user) {
@@ -230,9 +219,6 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
 
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
-    include: {
-      glucoseTarget: true,
-    },
   });
 
   if (!user) {
@@ -259,9 +245,6 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
       ...(updateData.treatingDoctor !== undefined && { treatingDoctor: updateData.treatingDoctor }),
       ...(updateData.diagnosisDate && { diagnosisDate: updateData.diagnosisDate }),
     },
-    include: {
-      glucoseTarget: true,
-    },
   });
 
   console.log('[updateUserProfile] User updated successfully:', req.user.id);
@@ -285,29 +268,26 @@ export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Respon
   console.log('[updateGlucoseTarget] Target values:', JSON.stringify(req.body, null, 2));
   const { minTarget, maxTarget } = req.body;
 
-  if (minTarget >= maxTarget) {
+  if (minTarget >= maxTarget || minTarget < 50 || maxTarget < 0 || maxTarget > 300) {
     console.log('[updateGlucoseTarget] Invalid target values:', { minTarget, maxTarget });
     res.status(400);
-    throw new Error('Min target must be less than max target');
+    throw new Error('Min target must be less than max target and both must be within valid ranges (min: 50, max: 300)');
   }
 
-  const target = await prisma.glucoseTarget.upsert({
-    where: { 
-      userId: req.user.id 
-    },
-    update: {
-      minTarget,
-      maxTarget,
-    },
-    create: {
-      minTarget,
-      maxTarget,
-      userId: req.user.id,
+  const user = await prisma.user.update({
+    where: { id: req.user.id },
+    data: {
+      minTargetGlucose: minTarget,
+      maxTargetGlucose: maxTarget,
     },
   });
-
+  if (!user) {
+    console.log('[updateGlucoseTarget] User not found:', req.user.id);
+    res.status(404);
+    throw new Error('User not found');
+  }
   console.log('[updateGlucoseTarget] Target updated successfully for user:', req.user.id);
-  res.json(target);
+  res.json(user);
 });
 
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
@@ -315,10 +295,10 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   
   try {
     await prisma.$transaction([
-      prisma.glucoseTarget.deleteMany({ where: { userId: req.user.id } }),
       prisma.glucoseReading.deleteMany({ where: { userId: req.user.id } }),
       prisma.activity.deleteMany({ where: { userId: req.user.id } }),
-      prisma.insulinDose.deleteMany({ where: { userId: req.user.id } }),
+      prisma.meal.deleteMany({ where: { userId: req.user.id } }),
+      prisma.insulinPrediction.deleteMany({ where: { userId: req.user.id } }),
       prisma.user.delete({ where: { id: req.user.id } }),
     ]);
     console.log('[deleteUser] User and related data deleted successfully:', req.user.id);

@@ -34,9 +34,18 @@ export const getGlucoseReadings = asyncHandler(async (req: Request, res: Respons
 
 export const createGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
   const { value, notes }: CreateGlucoseReadingInput = req.body;
+
+  const user = await prisma.user.findFirst({
+    where: { id: req.user.id },
+  });
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
   const target = {
-    minTarget: 70, // Default to 70 if not set
-    maxTarget: 140, // Default to 140 if not set
+    minTarget: user.minTargetGlucose || 70, // Default to 70 if not set
+    maxTarget: user.maxTargetGlucose || 180, // Default to 180 if not set
   }
   
   // Create glucose reading and associated activity atomically

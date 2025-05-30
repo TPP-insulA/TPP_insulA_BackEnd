@@ -22,6 +22,8 @@ model User {
   profileImage  String?    // URL de la imagen de perfil
   diabetesType  String    @default("type1") // Only Type 1 Diabetes
   diagnosisDate DateTime  @default(now())
+  maxTargetGlucose Int @default(180) // mg/dL
+  minTargetGlucose Int @default(70) // mg/dL
   treatingDoctor String?
   readings      GlucoseReading[]
   activities    Activity[]
