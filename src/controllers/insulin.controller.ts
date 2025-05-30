@@ -65,9 +65,19 @@ export const deleteInsulinPrediction = asyncHandler(async (req: Request, res: Re
     throw new Error('Insulin prediction not found');
   }
   
-  await prisma.insulinPrediction.delete({
-    where: { id },
-  });
+  // Delete insulin prediction and associated activity atomically
+  await prisma.$transaction([
+    prisma.activity.deleteMany({
+      where: {
+        sourceId: id,
+        type: 'insulin',
+        userId: req.user.id,
+      },
+    }),
+    prisma.insulinPrediction.delete({
+      where: { id },
+    }),
+  ]);
   
   res.json({ success: true });
 });
@@ -105,20 +115,24 @@ export const calculateInsulinPrediction = asyncHandler(async (req: Request, res:
     cgmPost: []
   };
   
-  // Create calculation record
-  const prismaResult = await prisma.insulinPrediction.create({
-    data
+  // Create calculation record and associated activity atomically
+  const result = await prisma.$transaction(async (tx) => {
+    const insulinPrediction = await tx.insulinPrediction.create({
+      data
+    });
+    const activity = await tx.activity.create({
+      data: {
+        type: 'insulin',
+        value: recommendedDose,
+        timestamp: new Date(date),
+        userId: req.user.id,
+        sourceId: insulinPrediction.id,
+      },
+    });
+    return { insulinPrediction, activity };
   });
-  const predictionId = prismaResult.id;
+  const predictionId = result.insulinPrediction.id;
 
-  await prisma.activity.create({
-    data: {
-      type: 'insulin',
-      value: recommendedDose,
-      timestamp: new Date(date),
-      userId: req.user.id,
-    },
-  });
   // Remove userId from the response and add predictionId as id
   const responseData = {
     ...data,

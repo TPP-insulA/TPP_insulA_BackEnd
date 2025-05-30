@@ -34,37 +34,38 @@ export const getGlucoseReadings = asyncHandler(async (req: Request, res: Respons
 
 export const createGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
   const { value, notes }: CreateGlucoseReadingInput = req.body;
+  const target = {
+    minTarget: 70, // Default to 70 if not set
+    maxTarget: 140, // Default to 140 if not set
+  }
   
-  // Get the user's target range
-  const target = await prisma.glucoseTarget.findUnique({
-    where: { userId: req.user.id },
+  // Create glucose reading and associated activity atomically
+  const result = await prisma.$transaction(async (tx) => {
+    const reading = await tx.glucoseReading.create({
+      data: {
+        value,
+        notes,
+        userId: req.user.id,
+      },
+    });
+    const activity = await tx.activity.create({
+      data: {
+        type: 'glucose',
+        value,
+        notes,
+        timestamp: reading.timestamp,
+        userId: req.user.id,
+        sourceId: reading.id,
+      },
+    });
+    return { reading, activity };
   });
-  
-  const reading = await prisma.glucoseReading.create({
-    data: {
-      value,
-      notes,
-      userId: req.user.id,
-    },
-  });
-  
-  // Create activity record with notes
-  await prisma.activity.create({
-    data: {
-      type: 'glucose',
-      value,
-      notes,
-      timestamp: reading.timestamp,
-      userId: req.user.id,
-    },
-  });
+  const reading = result.reading;
   
   // Return the reading with status information based on the target range
   let status = 'in-range';
-  if (target) {
-    if (value < target.minTarget) status = 'low';
-    if (value > target.maxTarget) status = 'high';
-  }
+  if (value < target.minTarget) status = 'low';
+  if (value > target.maxTarget) status = 'high';
   
   res.status(201).json({
     ...reading,

@@ -23,24 +23,12 @@ model User {
   diabetesType  String    @default("type1") // Only Type 1 Diabetes
   diagnosisDate DateTime  @default(now())
   treatingDoctor String?
-  glucoseTarget GlucoseTarget?
   readings      GlucoseReading[]
   activities    Activity[]
-  insulinDoses  InsulinDose[]
-  insulinCalculations InsulinCalculation[]
-  insulinSettings InsulinSettings?
   meals         Meal[]     
   insulinPredictions InsulinPrediction[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-}
-
-model GlucoseTarget {
-  id          String   @id @default(uuid())
-  minTarget   Float
-  maxTarget   Float
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
 }
 
 model GlucoseReading {
@@ -52,9 +40,28 @@ model GlucoseReading {
   user      User     @relation(fields: [userId], references: [id])
 }
 
+model InsulinPrediction {
+  id              String   @id @default(uuid())
+  date            DateTime
+  cgmPrev         Float[]
+  glucoseObjective Float
+  carbs           Float
+  insulinOnBoard  Float
+  sleepLevel      Float
+  workLevel       Float
+  activityLevel   Float
+  recommendedDose Float
+  applyDose       Float?
+  cgmPost         Float[]
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model Activity {
   id        String   @id @default(uuid())
-  type      String   // 'glucose' | 'meal' | 'insulin'
+  type      ActivityType
   value     Float?
   mealType  String?
   carbs     Float?
@@ -63,51 +70,7 @@ model Activity {
   timestamp DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-}
-
-model InsulinDose {
-  id          String   @id @default(uuid())
-  units       Float
-  type        String    // 'rapid' | 'long'
-  glucoseLevel Float?
-  carbIntake   Float?
-  notes       String?
-  timestamp   DateTime @default(now())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-
-  @@index([userId, timestamp])
-}
-
-model InsulinCalculation {
-  id              String   @id @default(uuid())
-  userId          String
-  timestamp       DateTime @default(now())
-  currentGlucose  Float
-  carbs           Float
-  activity        String
-  timeOfDay       String
-  total           Float
-  correctionDose  Float
-  mealDose        Float
-  activityAdjustment Float
-  timeAdjustment    Float
-  resultingGlucose  Float?
-  accuracy         String?  // 'Accurate' | 'Slightly low' | 'Low'
-  user            User     @relation(fields: [userId], references: [id])
-
-  @@index([userId, timestamp])
-}
-
-model InsulinSettings {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  carbRatio       Float    // grams per unit
-  correctionFactor Float   // mg/dL per unit
-  targetGlucoseMin Float
-  targetGlucoseMax Float
-  activeInsulinDuration Float // hours
-  user            User     @relation(fields: [userId], references: [id])
+  sourceId  String?  // ID del modelo origen (GlucoseReading, Meal, InsulinPrediction)
 }
 
 model Meal {
@@ -151,28 +114,15 @@ model MealFood {
   food     Food     @relation(fields: [foodId], references: [id])
 }
 
-model InsulinPrediction {
-  id              String   @id @default(uuid())
-  date            DateTime
-  cgmPrev         Float[]
-  glucoseObjective Float
-  carbs           Float
-  insulinOnBoard  Float
-  sleepLevel      Float
-  workLevel       Float
-  activityLevel   Float
-  recommendedDose Float
-  applyDose       Float?
-  cgmPost         Float[]
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
 enum MealType {
   breakfast
   lunch
   snack
   dinner
+}
+
+enum ActivityType {
+  glucose
+  meal
+  insulin
 }
