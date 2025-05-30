@@ -43,6 +43,6 @@ export const getDashboardData = asyncHandler(async (req: Request, res: Response)
     glucoseReadings,
     userProfile: user,
     activities,
-    predictionHistory,
+    predictions: predictionHistory,
   });
 });
