@@ -24,7 +24,18 @@ dotenv_1.default.config();
 const app = (0, express_1.default)();
 exports.prisma = new client_1.PrismaClient({
     log: ['query', 'error', 'warn'],
+    errorFormat: 'pretty',
 });
+async function connectDatabase() {
+    try {
+        await exports.prisma.$connect();
+        console.log('✅ Database connected successfully');
+    }
+    catch (error) {
+        console.error('❌ Database connection failed:', error);
+        process.exit(1);
+    }
+}
 app.use((0, morgan_1.default)('dev'));
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
@@ -54,15 +65,32 @@ app.use((req, res, next) => {
     console.log('=== End Request Details ===');
     next();
 });
-app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'OK',
-        message: 'Server is running',
-        environment: process.env.NODE_ENV,
-        nodeVersion: process.version,
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
-    });
+app.get('/health', async (req, res) => {
+    try {
+        await exports.prisma.$queryRaw `SELECT 1`;
+        res.status(200).json({
+            status: 'OK',
+            message: 'Server is running',
+            database: 'Connected',
+            environment: process.env.NODE_ENV,
+            nodeVersion: process.version,
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        console.error('Health check failed:', error);
+        res.status(503).json({
+            status: 'ERROR',
+            message: 'Server is running but database is unavailable',
+            database: 'Disconnected',
+            environment: process.env.NODE_ENV,
+            nodeVersion: process.version,
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString(),
+            error: error instanceof Error ? error.message : 'Unknown database error'
+        });
+    }
 });
 app.use('/api/docs', swagger_1.swaggerUi.serve);
 app.get('/api/docs', swagger_1.swaggerUi.setup(swagger_1.specs, Object.assign(Object.assign({}, swagger_1.swaggerUiOptions), { explorer: true, customCss: '.swagger-ui .topbar { display: none }' })));
@@ -74,6 +102,26 @@ app.use('/api/insulin', insulin_routes_1.default);
 app.use('/api/food', food_routes_1.default);
 app.use('/api/meals', meals_routes_1.default);
 app.use('/api/dashboard', dashboard_routes_1.default);
+app.get('/api/debug/config', (req, res) => {
+    res.json({
+        nodeEnv: process.env.NODE_ENV,
+        port: process.env.PORT,
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        databaseUrlPreview: process.env.DATABASE_URL ?
+            process.env.DATABASE_URL.substring(0, 20) + '...' : 'Not set',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+app.get('/api/test', (req, res) => {
+    res.json({
+        message: 'Server is responding',
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        url: req.url
+    });
+});
 app.get('/', (req, res) => {
     res.redirect('/api/docs');
 });
@@ -97,21 +145,42 @@ app.use((err, req, res, next) => {
 });
 const port = Number(process.env.PORT) || 3000;
 if (require.main === module) {
-    const server = app.listen(port, '0.0.0.0', () => {
-        console.log(`⚡️[server]: Server is running on port ${port}`);
-        console.log('Environment:', process.env.NODE_ENV);
-        console.log('Database connection established');
-    });
-    const shutdown = async () => {
-        console.log('Shutting down gracefully...');
-        await exports.prisma.$disconnect();
-        server.close(() => {
-            console.log('Server closed');
-            process.exit(0);
+    connectDatabase().then(() => {
+        const server = app.listen(port, '0.0.0.0', () => {
+            console.log(`⚡️[server]: Server is running on port ${port}`);
+            console.log('Environment:', process.env.NODE_ENV);
+            console.log('Database connection established');
+            console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+            console.log(`❤️ Health Check: http://localhost:${port}/health`);
         });
-    };
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
+        const shutdown = async () => {
+            console.log('Shutting down gracefully...');
+            try {
+                await exports.prisma.$disconnect();
+                console.log('Database disconnected');
+            }
+            catch (error) {
+                console.error('Error disconnecting database:', error);
+            }
+            server.close(() => {
+                console.log('Server closed');
+                process.exit(0);
+            });
+        };
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
+        process.on('uncaughtException', (error) => {
+            console.error('Uncaught Exception:', error);
+            shutdown();
+        });
+        process.on('unhandledRejection', (reason, promise) => {
+            console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+            shutdown();
+        });
+    }).catch((error) => {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    });
 }
 exports.default = app;
 //# sourceMappingURL=app.js.map

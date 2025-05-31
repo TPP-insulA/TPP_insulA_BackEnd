@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const router = (0, express_1.Router)();
@@ -46,6 +79,86 @@ router.get('/env', (req, res) => {
         memoryUsage: process.memoryUsage(),
         cpuUsage: process.cpuUsage()
     });
+});
+router.get('/status', async (req, res) => {
+    var _a;
+    try {
+        const { prisma } = await Promise.resolve().then(() => __importStar(require('../app')));
+        let dbStatus = 'Unknown';
+        try {
+            await prisma.$queryRaw `SELECT 1 as test`;
+            dbStatus = 'Connected';
+        }
+        catch (dbError) {
+            dbStatus = `Error: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`;
+        }
+        res.json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            server: {
+                nodeVersion: process.version,
+                platform: process.platform,
+                uptime: process.uptime(),
+                memory: process.memoryUsage(),
+                pid: process.pid
+            },
+            environment: {
+                NODE_ENV: process.env.NODE_ENV,
+                PORT: process.env.PORT,
+                hasJwtSecret: !!process.env.JWT_SECRET,
+                hasDatabaseUrl: !!process.env.DATABASE_URL,
+                databaseUrlLength: ((_a = process.env.DATABASE_URL) === null || _a === void 0 ? void 0 : _a.length) || 0
+            },
+            database: {
+                status: dbStatus,
+                prismaVersion: '4.15.0'
+            }
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            status: 'ERROR',
+            message: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+router.post('/test-validation', (req, res) => {
+    try {
+        const { email, password, firstName, lastName, birthDay, birthMonth, birthYear, weight, height, glucoseProfile } = req.body;
+        const validationErrors = [];
+        if (!email) {
+            validationErrors.push('Email is required');
+        }
+        else if (typeof email !== 'string') {
+            validationErrors.push('Email must be a string');
+        }
+        res.json({
+            status: 'OK',
+            message: 'Validation test completed',
+            receivedData: {
+                email: email || 'NOT_PROVIDED',
+                firstName: firstName || 'NOT_PROVIDED',
+                lastName: lastName || 'NOT_PROVIDED',
+                hasPassword: !!password,
+                birthDay: birthDay || 'NOT_PROVIDED',
+                birthMonth: birthMonth || 'NOT_PROVIDED',
+                birthYear: birthYear || 'NOT_PROVIDED',
+                weight: weight || 'NOT_PROVIDED',
+                height: height || 'NOT_PROVIDED',
+                glucoseProfile: glucoseProfile || 'NOT_PROVIDED'
+            },
+            validationErrors,
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            status: 'ERROR',
+            message: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString()
+        });
+    }
 });
 exports.default = router;
 //# sourceMappingURL=debug.routes.js.map

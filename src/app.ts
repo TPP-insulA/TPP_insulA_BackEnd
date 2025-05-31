@@ -25,10 +25,22 @@ import { errorHandler, notFound } from './middleware/error.middleware';
 dotenv.config();
 const app: Express = express();
 
-// Initialize PrismaClient
+// Initialize PrismaClient with better error handling
 export const prisma = new PrismaClient({
   log: ['query', 'error', 'warn'],
+  errorFormat: 'pretty',
 });
+
+// Test database connection on startup
+async function connectDatabase() {
+  try {
+    await prisma.$connect();
+    console.log('✅ Database connected successfully');
+  } catch (error) {
+    console.error('❌ Database connection failed:', error);
+    process.exit(1);
+  }
+}
 
 // Basic middleware
 app.use(morgan('dev'));
@@ -68,15 +80,33 @@ app.use((req: Request, res: Response, next) => {
 });
 
 // Health check endpoint (before api routes)
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'OK',
-    message: 'Server is running',
-    environment: process.env.NODE_ENV,
-    nodeVersion: process.version,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
+app.get('/health', async (req: Request, res: Response) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.status(200).json({
+      status: 'OK',
+      message: 'Server is running',
+      database: 'Connected',
+      environment: process.env.NODE_ENV,
+      nodeVersion: process.version,
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({
+      status: 'ERROR',
+      message: 'Server is running but database is unavailable',
+      database: 'Disconnected',
+      environment: process.env.NODE_ENV,
+      nodeVersion: process.version,
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown database error'
+    });
+  }
 });
 
 // Swagger documentation (before api routes)
@@ -98,6 +128,30 @@ app.use('/api/insulin', insulinRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// Debug endpoint for troubleshooting
+app.get('/api/debug/config', (req: Request, res: Response) => {
+  res.json({
+    nodeEnv: process.env.NODE_ENV,
+    port: process.env.PORT,
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    databaseUrlPreview: process.env.DATABASE_URL ? 
+      process.env.DATABASE_URL.substring(0, 20) + '...' : 'Not set',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Simple test endpoint
+app.get('/api/test', (req: Request, res: Response) => {
+  res.json({
+    message: 'Server is responding',
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url
+  });
+});
 
 // Root path redirect to API docs
 app.get('/', (req: Request, res: Response) => {
@@ -129,23 +183,47 @@ app.use((err: any, req: Request, res: Response, next: any) => {
 const port = Number(process.env.PORT) || 3000;
 
 if (require.main === module) {
-  const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`⚡️[server]: Server is running on port ${port}`);
-    console.log('Environment:', process.env.NODE_ENV);
-    console.log('Database connection established');
-  });
-
-  const shutdown = async () => {
-    console.log('Shutting down gracefully...');
-    await prisma.$disconnect();
-    server.close(() => {
-      console.log('Server closed');
-      process.exit(0);
+  // Connect to database first
+  connectDatabase().then(() => {
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`⚡️[server]: Server is running on port ${port}`);
+      console.log('Environment:', process.env.NODE_ENV);
+      console.log('Database connection established');
+      console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+      console.log(`❤️ Health Check: http://localhost:${port}/health`);
     });
-  };
 
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
+    const shutdown = async () => {
+      console.log('Shutting down gracefully...');
+      try {
+        await prisma.$disconnect();
+        console.log('Database disconnected');
+      } catch (error) {
+        console.error('Error disconnecting database:', error);
+      }
+      server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+    
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught Exception:', error);
+      shutdown();
+    });
+    
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      shutdown();
+    });
+  }).catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
 }
 
 export default app;

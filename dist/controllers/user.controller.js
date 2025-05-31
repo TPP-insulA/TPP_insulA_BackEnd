@@ -35,6 +35,18 @@ exports.registerUser = (0, error_middleware_1.asyncHandler)(async (req, res) => 
         console.log('[registerUser] Request IP:', req.ip);
         console.log('[registerUser] User-Agent:', req.get('User-Agent'));
         console.log('[registerUser] Content-Type:', req.get('Content-Type'));
+        try {
+            await app_1.prisma.$connect();
+            console.log('[registerUser] Database connection successful');
+        }
+        catch (dbError) {
+            console.error('[registerUser] Database connection failed:', dbError);
+            return res.status(503).json({
+                success: false,
+                message: 'Database connection unavailable',
+                error: 'DATABASE_UNAVAILABLE'
+            });
+        }
         if (!req.body || Object.keys(req.body).length === 0) {
             console.error('[registerUser] Empty request body');
             return res.status(400).json({
@@ -109,9 +121,10 @@ exports.registerUser = (0, error_middleware_1.asyncHandler)(async (req, res) => 
             }
             const today = new Date();
             const birthDate = new Date(year, month - 1, day);
-            const age = today.getFullYear() - birthDate.getFullYear();
+            let age = today.getFullYear() - birthDate.getFullYear();
             const monthDiff = today.getMonth() - birthDate.getMonth();
             if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
             }
             if (age < 13) {
                 validationErrors.push('User must be at least 13 years old');
@@ -164,19 +177,40 @@ exports.registerUser = (0, error_middleware_1.asyncHandler)(async (req, res) => 
         }
         const normalizedEmail = email.trim().toLowerCase();
         console.log('[registerUser] Checking if user exists:', normalizedEmail);
-        const userExists = await app_1.prisma.user.findUnique({
-            where: { email: normalizedEmail },
-        });
-        if (userExists) {
-            console.log('[registerUser] User already exists:', normalizedEmail);
-            return res.status(409).json({
+        try {
+            const userExists = await app_1.prisma.user.findUnique({
+                where: { email: normalizedEmail },
+            });
+            if (userExists) {
+                console.log('[registerUser] User already exists:', normalizedEmail);
+                return res.status(409).json({
+                    success: false,
+                    message: 'A user with this email already exists',
+                    error: 'USER_EXISTS'
+                });
+            }
+        }
+        catch (dbCheckError) {
+            console.error('[registerUser] Error checking user existence:', dbCheckError);
+            return res.status(500).json({
                 success: false,
-                message: 'A user with this email already exists',
-                error: 'USER_EXISTS'
+                message: 'Database error during user check',
+                error: 'DATABASE_ERROR'
             });
         }
         console.log('[registerUser] Hashing password...');
-        const hashedPassword = await (0, auth_utils_1.hashPassword)(password);
+        let hashedPassword;
+        try {
+            hashedPassword = await (0, auth_utils_1.hashPassword)(password);
+        }
+        catch (hashError) {
+            console.error('[registerUser] Error hashing password:', hashError);
+            return res.status(500).json({
+                success: false,
+                message: 'Error processing password',
+                error: 'PASSWORD_HASH_ERROR'
+            });
+        }
         let minTarget = 70;
         let maxTarget = 180;
         switch (glucoseProfile.toLowerCase()) {
@@ -210,12 +244,59 @@ exports.registerUser = (0, error_middleware_1.asyncHandler)(async (req, res) => 
             maxTargetGlucose: maxTarget,
         };
         console.log('[registerUser] Creating user with data (password hidden):', Object.assign(Object.assign({}, userData), { password: '[HIDDEN]' }));
-        const user = await app_1.prisma.user.create({
-            data: userData
-        });
-        console.log('[registerUser] User created successfully:', user.id);
+        let user;
+        try {
+            user = await app_1.prisma.user.create({
+                data: userData
+            });
+            console.log('[registerUser] User created successfully:', user.id);
+        }
+        catch (createError) {
+            console.error('[registerUser] Error creating user:', createError);
+            if (createError instanceof Error) {
+                const prismaError = createError;
+                if (prismaError.code === 'P2002') {
+                    return res.status(409).json({
+                        success: false,
+                        message: 'A user with this email already exists',
+                        error: 'DUPLICATE_EMAIL'
+                    });
+                }
+                if (prismaError.code === 'P2003') {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Invalid foreign key constraint',
+                        error: 'FOREIGN_KEY_ERROR'
+                    });
+                }
+                if (prismaError.code === 'P2025') {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Record not found',
+                        error: 'RECORD_NOT_FOUND'
+                    });
+                }
+            }
+            return res.status(500).json({
+                success: false,
+                message: 'Database error during user creation',
+                error: 'USER_CREATION_ERROR'
+            });
+        }
         const userWithoutPassword = (0, auth_utils_1.excludePassword)(user);
-        const token = (0, auth_utils_1.generateToken)(user.id);
+        let token;
+        try {
+            token = (0, auth_utils_1.generateToken)(user.id);
+        }
+        catch (tokenError) {
+            console.error('[registerUser] Error generating token:', tokenError);
+            return res.status(500).json({
+                success: false,
+                message: 'Error generating authentication token',
+                error: 'TOKEN_GENERATION_ERROR'
+            });
+        }
+        console.log('[registerUser] Registration completed successfully for user:', user.id);
         return res.status(201).json({
             success: true,
             message: 'User registered successfully',
@@ -226,37 +307,13 @@ exports.registerUser = (0, error_middleware_1.asyncHandler)(async (req, res) => 
         });
     }
     catch (error) {
-        console.error('[registerUser] Error details:', {
+        console.error('[registerUser] Unexpected error details:', {
             message: error instanceof Error ? error.message : 'Unknown error',
             code: error instanceof Error && 'code' in error ? error.code : undefined,
             meta: error instanceof Error && 'meta' in error ? error.meta : undefined,
             stack: error instanceof Error ? error.stack : undefined,
             name: error instanceof Error ? error.name : undefined
         });
-        if (error instanceof Error) {
-            const prismaError = error;
-            if (prismaError.code === 'P2002') {
-                return res.status(409).json({
-                    success: false,
-                    message: 'A user with this email already exists',
-                    error: 'DUPLICATE_EMAIL'
-                });
-            }
-            if (prismaError.code === 'P2003') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid foreign key constraint',
-                    error: 'FOREIGN_KEY_ERROR'
-                });
-            }
-            if (prismaError.code === 'P2025') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Record not found',
-                    error: 'RECORD_NOT_FOUND'
-                });
-            }
-        }
         return res.status(500).json(Object.assign({ success: false, message: 'Internal server error during user registration', error: 'INTERNAL_ERROR' }, (process.env.NODE_ENV === 'development' && {
             details: error instanceof Error ? error.message : 'Unknown error'
         })));
