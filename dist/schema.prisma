@@ -22,22 +22,15 @@ model User {
   profileImage  String?    // URL de la imagen de perfil
   diabetesType  String    @default("type1") // Only Type 1 Diabetes
   diagnosisDate DateTime  @default(now())
+  maxTargetGlucose Int @default(180) // mg/dL
+  minTargetGlucose Int @default(70) // mg/dL
   treatingDoctor String?
-  glucoseTarget GlucoseTarget?
   readings      GlucoseReading[]
   activities    Activity[]
-  insulinDoses  InsulinDose[]
   meals         Meal[]     
+  insulinPredictions InsulinPrediction[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-}
-
-model GlucoseTarget {
-  id          String   @id @default(uuid())
-  minTarget   Float
-  maxTarget   Float
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
 }
 
 model GlucoseReading {
@@ -49,9 +42,28 @@ model GlucoseReading {
   user      User     @relation(fields: [userId], references: [id])
 }
 
+model InsulinPrediction {
+  id              String   @id @default(uuid())
+  date            DateTime
+  cgmPrev         Float[]
+  glucoseObjective Float
+  carbs           Float
+  insulinOnBoard  Float
+  sleepLevel      Float
+  workLevel       Float
+  activityLevel   Float
+  recommendedDose Float
+  applyDose       Float?
+  cgmPost         Float[]
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model Activity {
   id        String   @id @default(uuid())
-  type      String   // 'glucose' | 'meal' | 'insulin'
+  type      ActivityType
   value     Float?
   mealType  String?
   carbs     Float?
@@ -60,16 +72,7 @@ model Activity {
   timestamp DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-}
-
-model InsulinDose {
-  id          String   @id @default(uuid())
-  units       Float
-  glucoseLevel Float?
-  carbIntake   Float?
-  timestamp   DateTime @default(now())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  sourceId  String?  // ID del modelo origen (GlucoseReading, Meal, InsulinPrediction)
 }
 
 model Meal {
@@ -118,4 +121,10 @@ enum MealType {
   lunch
   snack
   dinner
+}
+
+enum ActivityType {
+  glucose
+  meal
+  insulin
 }

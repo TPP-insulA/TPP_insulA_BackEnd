@@ -48,15 +48,6 @@ export type Activity = {
   userId: string;
 }
 
-export type InsulinDose = {
-  id: string;
-  units: number;
-  glucoseLevel?: number | null;
-  carbIntake?: number | null;
-  timestamp: Date;
-  userId: string;
-}
-
 // Auth types
 export interface RegisterUserInput {
   email: string;
@@ -99,52 +90,6 @@ export interface UpdateGlucoseTargetInput {
 export type ActivityType = 'glucose' | 'meal' | 'insulin';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
-export interface CreateActivityInput {
-  type: ActivityType;
-  value?: number;
-  mealType?: MealType;
-  carbs?: number;
-  units?: number;
-  notes?: string;
-}
-
-// Insulin types
-export type InsulinType = 'rapid' | 'long';
-export type AccuracyType = 'Accurate' | 'Slightly low' | 'Low';
-
-export interface CreateInsulinDoseInput {
-  units: number;
-  type: InsulinType;
-  timestamp?: Date;
-  notes?: string;
-}
-
-export interface InsulinCalculationInput {
-  currentGlucose: number;
-  carbs: number;
-  activity: string;
-  timeOfDay: string;
-}
-
-export interface InsulinPredictionInput {
-  mealType: string;
-  carbs: number;
-  glucose: number;
-  units: number;
-  resultingGlucose: number;
-}
-
-export interface InsulinSettingsInput {
-  carbRatio?: number;
-  correctionFactor?: number;
-  targetGlucose?: {
-    min: number;
-    max: number;
-  };
-  activeInsulin?: {
-    duration: number;
-  };
-}
 
 // Profile types
 export interface UpdateProfileInput {
@@ -165,6 +110,25 @@ export interface UpdateProfileInput {
 
 export interface UpdateProfileImageInput {
   imageUrl: string;
+}
+
+//Insulin types
+export interface InsulinPredictionData {
+  date: string; // UTC ISO string
+  cgmPrev: number[];
+  glucoseObjective: number;
+  carbs: number;
+  insulinOnBoard: number;
+  sleepLevel: number;
+  workLevel: number;
+  activityLevel: number;
+}
+
+export interface InsulinPredictionResult extends InsulinPredictionData {
+  id: string;
+  recommendedDose: number;
+  applyDose?: number;
+  cgmPost: number[];
 }
 
 // Re-export prisma instance from app.ts

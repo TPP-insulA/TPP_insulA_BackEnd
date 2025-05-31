@@ -2,9 +2,6 @@ import { Router } from 'express';
 import {
   createGlucoseReading,
   getGlucoseReadings,
-  updateGlucoseReading,
-  deleteGlucoseReading,
-  getGlucoseStats
 } from '../controllers/glucose.controller';
 import { protect } from '../middleware/auth.middleware';
 
@@ -111,96 +108,5 @@ router.use(protect);
  */
 router.post('/', createGlucoseReading);
 router.get('/', getGlucoseReadings);
-
-/**
- * @swagger
- * /api/glucose/stats:
- *   get:
- *     summary: Get glucose statistics
- *     tags: [Glucose]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Start date for calculating stats
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *         description: End date for calculating stats
- *     responses:
- *       200:
- *         description: Glucose statistics
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 average:
- *                   type: number
- *                 max:
- *                   type: number
- *                 min:
- *                   type: number
- *                 readings:
- *                   type: number
- */
-router.get('/stats', getGlucoseStats);
-
-/**
- * @swagger
- * /api/glucose/{id}:
- *   put:
- *     summary: Update a glucose reading
- *     tags: [Glucose]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID of the glucose reading
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               value:
- *                 type: number
- *               timestamp:
- *                 type: string
- *                 format: date-time
- *               notes:
- *                 type: string
- *     responses:
- *       200:
- *         description: Glucose reading updated successfully
- *   delete:
- *     summary: Delete a glucose reading
- *     tags: [Glucose]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID of the glucose reading
- *     responses:
- *       200:
- *         description: Glucose reading deleted successfully
- */
-router.put('/:id', updateGlucoseReading);
-router.delete('/:id', deleteGlucoseReading);
 
 export default router;

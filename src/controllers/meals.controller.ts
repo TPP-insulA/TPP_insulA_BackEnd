@@ -92,53 +92,58 @@ export const createMeal = asyncHandler(async (req: Request, res: Response): Prom
       calories: 0
     });
 
-    const meal = await prisma.meal.create({
-      data: {
-        name,
-        description,
-        type,
-        ...totals,
-        photo,
-        timestamp: mealTimestamp,
-        userId: req.user.id,
-        mealFoods: {
-          create: await Promise.all(foods.map(async food => {
-            const createdFood = await prisma.food.create({
-              data: {
-                name: food.name,
-                carbs: food.carbs,
-                protein: food.protein,
-                fat: food.fat,
-                calories: food.calories,
-                servingSize: food.servingSize
-              }
-            });
-            return {
-              quantity: food.quantity,
-              foodId: createdFood.id
-            };
-          }))
-        }
-      },
-      include: {
-        mealFoods: {
-          include: {
-            food: true
+    // Crear meal y activity asociada en una transacción atómica
+    const result = await prisma.$transaction(async (tx) => {
+      const meal = await tx.meal.create({
+        data: {
+          name,
+          description,
+          type,
+          ...totals,
+          photo,
+          timestamp: mealTimestamp,
+          userId: req.user.id,
+          mealFoods: {
+            create: await Promise.all(foods.map(async food => {
+              const createdFood = await prisma.food.create({
+                data: {
+                  name: food.name,
+                  carbs: food.carbs,
+                  protein: food.protein,
+                  fat: food.fat,
+                  calories: food.calories,
+                  servingSize: food.servingSize
+                }
+              });
+              return {
+                quantity: food.quantity,
+                foodId: createdFood.id
+              };
+            }))
+          }
+        },
+        include: {
+          mealFoods: {
+            include: {
+              food: true
+            }
           }
         }
-      }
+      });
+      const activity = await tx.activity.create({
+        data: {
+          type: 'meal',
+          value: totals.calories,
+          mealType: type,
+          carbs: totals.carbs,
+          timestamp: mealTimestamp,
+          userId: req.user.id,
+          sourceId: meal.id,
+        }
+      });
+      return { meal, activity };
     });
-
-    await prisma.activity.create({
-      data: {
-        type: 'meal',
-        value: totals.calories,
-        mealType: type,
-        carbs: totals.carbs,
-        timestamp: mealTimestamp,
-        userId: req.user.id
-      }
-    });
+    const meal = result.meal;
 
     res.status(201).json({
       success: true,
@@ -299,16 +304,17 @@ export const deleteMeal = asyncHandler(async (req: Request, res: Response): Prom
       return;
     }
 
+    // Eliminar meal y activity asociada en una transacción atómica
     await prisma.$transaction([
-      prisma.meal.delete({
-        where: { id }
-      }),
       prisma.activity.deleteMany({
         where: {
-          type: 'meal',
           userId: req.user.id,
-          timestamp: meal.timestamp
+          type: 'meal',
+          sourceId: id,
         }
+      }),
+      prisma.meal.delete({
+        where: { id }
       })
     ]);
 

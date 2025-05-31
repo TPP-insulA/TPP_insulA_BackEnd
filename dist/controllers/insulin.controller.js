@@ -1,103 +1,46 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getInsulinStats = exports.deleteInsulinDose = exports.updateInsulinDose = exports.getInsulinDose = exports.getInsulinDoses = exports.createInsulinDose = void 0;
+exports.getInsulinPredictions = exports.calculateInsulinPrediction = exports.deleteInsulinPrediction = exports.updateInsulinPrediction = void 0;
 const app_1 = require("../app");
 const error_middleware_1 = require("../middleware/error.middleware");
-exports.createInsulinDose = (0, error_middleware_1.asyncHandler)(async (req, res) => {
-    const { units, glucoseLevel, carbIntake } = req.body;
-    const dose = await app_1.prisma.insulinDose.create({
-        data: {
-            units,
-            glucoseLevel,
-            carbIntake,
-            userId: req.user.id,
-        },
-    });
-    await app_1.prisma.activity.create({
-        data: {
-            type: 'insulin',
-            value: glucoseLevel,
-            carbs: carbIntake,
-            units,
-            timestamp: dose.timestamp,
-            userId: req.user.id,
-        },
-    });
-    res.status(201).json(dose);
-});
-exports.getInsulinDoses = (0, error_middleware_1.asyncHandler)(async (req, res) => {
-    const { startDate, endDate, limit = 100 } = req.query;
-    const whereClause = {
-        userId: req.user.id
-    };
-    if (startDate || endDate) {
-        whereClause.timestamp = {};
-        if (startDate) {
-            whereClause.timestamp.gte = new Date(startDate);
-        }
-        if (endDate) {
-            whereClause.timestamp.lte = new Date(endDate);
-        }
-    }
-    const doses = await app_1.prisma.insulinDose.findMany({
-        where: whereClause,
-        orderBy: { timestamp: 'desc' },
-        take: Number(limit),
-    });
-    res.json(doses);
-});
-exports.getInsulinDose = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+const string_utils_1 = require("../utils/string.utils");
+exports.updateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
-    const dose = await app_1.prisma.insulinDose.findFirst({
+    const { applyDose, cgmPost, } = req.body;
+    console.log('Updating insulin dose with ID:', id);
+    console.log('Apply dose:', applyDose);
+    console.log('CGM post:', cgmPost);
+    const dose = await app_1.prisma.insulinPrediction.findFirst({
         where: {
             id,
             userId: req.user.id,
         },
     });
     if (!dose) {
+        console.log('Dose not found for ID:', id);
+        console.log('User ID:', req.user.id);
         res.status(404);
         throw new Error('Insulin dose not found');
     }
-    res.json(dose);
-});
-exports.updateInsulinDose = (0, error_middleware_1.asyncHandler)(async (req, res) => {
-    const { id } = req.params;
-    const { units, glucoseLevel, carbIntake } = req.body;
-    const dose = await app_1.prisma.insulinDose.findFirst({
-        where: {
-            id,
-            userId: req.user.id,
-        },
-    });
-    if (!dose) {
-        res.status(404);
-        throw new Error('Insulin dose not found');
-    }
-    const updatedDose = await app_1.prisma.insulinDose.update({
+    const updatedDose = await app_1.prisma.insulinPrediction.update({
         where: { id },
         data: {
-            units: units !== undefined ? units : dose.units,
-            glucoseLevel: glucoseLevel !== undefined ? glucoseLevel : dose.glucoseLevel,
-            carbIntake: carbIntake !== undefined ? carbIntake : dose.carbIntake,
+            applyDose,
+            cgmPost,
         },
     });
-    await app_1.prisma.activity.updateMany({
-        where: {
-            type: 'insulin',
-            userId: req.user.id,
-            timestamp: dose.timestamp,
-        },
-        data: {
-            value: glucoseLevel !== undefined ? glucoseLevel : dose.glucoseLevel,
-            carbs: carbIntake !== undefined ? carbIntake : dose.carbIntake,
-            units: units !== undefined ? units : dose.units,
-        },
-    });
-    res.json(updatedDose);
+    const responseData = {
+        applyDose: updatedDose.applyDose,
+        cgmPost: updatedDose.cgmPost,
+    };
+    console.log('Updated dose:', responseData);
+    res.json(responseData);
 });
-exports.deleteInsulinDose = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+exports.deleteInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
-    const dose = await app_1.prisma.insulinDose.findFirst({
+    console.log('Deleting insulin prediction with ID:', id);
+    console.log('Deleting insulin prediction with user ID:', req.user.id);
+    const dose = await app_1.prisma.insulinPrediction.findFirst({
         where: {
             id,
             userId: req.user.id,
@@ -105,22 +48,67 @@ exports.deleteInsulinDose = (0, error_middleware_1.asyncHandler)(async (req, res
     });
     if (!dose) {
         res.status(404);
-        throw new Error('Insulin dose not found');
+        throw new Error('Insulin prediction not found');
     }
     await app_1.prisma.$transaction([
-        app_1.prisma.insulinDose.delete({
-            where: { id },
-        }),
         app_1.prisma.activity.deleteMany({
             where: {
+                sourceId: id,
                 type: 'insulin',
                 userId: req.user.id,
-                timestamp: dose.timestamp,
             },
         }),
+        app_1.prisma.insulinPrediction.delete({
+            where: { id },
+        }),
     ]);
-    res.json({ message: 'Insulin dose deleted' });
+    res.json({ success: true });
 });
-exports.getInsulinStats = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+exports.calculateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+    const { date, cgmPrev, glucoseObjective, carbs, insulinOnBoard, sleepLevel, workLevel, activityLevel, } = req.body;
+    const randomNumber = String(Math.random());
+    const recommendedDose = Number((0, string_utils_1.getLastDigit)(randomNumber)) || 1;
+    console.log('Recommended dose:', recommendedDose);
+    const data = {
+        userId: req.user.id,
+        date: new Date(date),
+        cgmPrev: cgmPrev,
+        glucoseObjective: glucoseObjective,
+        carbs: carbs,
+        insulinOnBoard: insulinOnBoard,
+        sleepLevel: sleepLevel,
+        workLevel: workLevel,
+        activityLevel: activityLevel,
+        recommendedDose: recommendedDose,
+        applyDose: null,
+        cgmPost: []
+    };
+    const result = await app_1.prisma.$transaction(async (tx) => {
+        const insulinPrediction = await tx.insulinPrediction.create({
+            data
+        });
+        const activity = await tx.activity.create({
+            data: {
+                type: 'insulin',
+                value: recommendedDose,
+                timestamp: new Date(date),
+                userId: req.user.id,
+                sourceId: insulinPrediction.id,
+            },
+        });
+        return { insulinPrediction, activity };
+    });
+    const predictionId = result.insulinPrediction.id;
+    const responseData = Object.assign(Object.assign({}, data), { id: predictionId });
+    res.json(responseData);
+});
+exports.getInsulinPredictions = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+    const predictions = await app_1.prisma.insulinPrediction.findMany({
+        where: {
+            userId: req.user.id,
+        },
+        orderBy: { date: 'desc' },
+    });
+    res.json(predictions);
 });
 //# sourceMappingURL=insulin.controller.js.map

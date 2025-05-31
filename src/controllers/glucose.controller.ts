@@ -32,57 +32,49 @@ export const getGlucoseReadings = asyncHandler(async (req: Request, res: Respons
   res.json(readings);
 });
 
-export const getGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  
-  const reading = await prisma.glucoseReading.findFirst({
-    where: { 
-      id, 
-      userId: req.user.id 
-    },
-  });
-  
-  if (!reading) {
-    res.status(404);
-    throw new Error('Glucose reading not found');
-  }
-  
-  res.json(reading);
-});
-
 export const createGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
   const { value, notes }: CreateGlucoseReadingInput = req.body;
-  
-  // Get the user's target range
-  const target = await prisma.glucoseTarget.findUnique({
-    where: { userId: req.user.id },
+
+  const user = await prisma.user.findFirst({
+    where: { id: req.user.id },
   });
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  const target = {
+    minTarget: user.minTargetGlucose || 70, // Default to 70 if not set
+    maxTarget: user.maxTargetGlucose || 180, // Default to 180 if not set
+  }
   
-  const reading = await prisma.glucoseReading.create({
-    data: {
-      value,
-      notes,
-      userId: req.user.id,
-    },
+  // Create glucose reading and associated activity atomically
+  const result = await prisma.$transaction(async (tx) => {
+    const reading = await tx.glucoseReading.create({
+      data: {
+        value,
+        notes,
+        userId: req.user.id,
+      },
+    });
+    const activity = await tx.activity.create({
+      data: {
+        type: 'glucose',
+        value,
+        notes,
+        timestamp: reading.timestamp,
+        userId: req.user.id,
+        sourceId: reading.id,
+      },
+    });
+    return { reading, activity };
   });
-  
-  // Create activity record with notes
-  await prisma.activity.create({
-    data: {
-      type: 'glucose',
-      value,
-      notes,
-      timestamp: reading.timestamp,
-      userId: req.user.id,
-    },
-  });
+  const reading = result.reading;
   
   // Return the reading with status information based on the target range
   let status = 'in-range';
-  if (target) {
-    if (value < target.minTarget) status = 'low';
-    if (value > target.maxTarget) status = 'high';
-  }
+  if (value < target.minTarget) status = 'low';
+  if (value > target.maxTarget) status = 'high';
   
   res.status(201).json({
     ...reading,
@@ -90,81 +82,3 @@ export const createGlucoseReading = asyncHandler(async (req: Request, res: Respo
   });
 });
 
-export const updateGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { value, notes } = req.body;
-  
-  const reading = await prisma.glucoseReading.findFirst({
-    where: { 
-      id, 
-      userId: req.user.id 
-    },
-  });
-  
-  if (!reading) {
-    res.status(404);
-    throw new Error('Glucose reading not found');
-  }
-  
-  const updatedReading = await prisma.glucoseReading.update({
-    where: { id },
-    data: {
-      value: value !== undefined ? value : reading.value,
-      notes: notes !== undefined ? notes : reading.notes,
-    },
-  });
-  
-  // Update activity including notes if either value or notes changed
-  if (value !== undefined || notes !== undefined) {
-    await prisma.activity.updateMany({
-      where: {
-        type: 'glucose',
-        userId: req.user.id,
-        timestamp: reading.timestamp,
-      },
-      data: {
-        ...(value !== undefined && { value }),
-        ...(notes !== undefined && { notes }),
-      },
-    });
-  }
-  
-  res.json(updatedReading);
-});
-
-export const deleteGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  
-  const reading = await prisma.glucoseReading.findFirst({
-    where: { 
-      id, 
-      userId: req.user.id 
-    },
-  });
-  
-  if (!reading) {
-    res.status(404);
-    throw new Error('Glucose reading not found');
-  }
-  
-  await prisma.$transaction([
-    // Delete the glucose reading
-    prisma.glucoseReading.delete({
-      where: { id },
-    }),
-    // Delete the corresponding activity
-    prisma.activity.deleteMany({
-      where: {
-        type: 'glucose',
-        userId: req.user.id,
-        timestamp: reading.timestamp,
-      },
-    }),
-  ]);
-  
-  res.json({ message: 'Glucose reading deleted' });
-});
-
-export const getGlucoseStats = asyncHandler(async (req: Request, res: Response) => {
-  // ...existing code...
-});
