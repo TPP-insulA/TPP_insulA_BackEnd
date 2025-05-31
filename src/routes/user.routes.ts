@@ -73,22 +73,130 @@ const router = Router();
  *             required:
  *               - email
  *               - password
- *               - name
+ *               - firstName
+ *               - lastName
+ *               - birthDay
+ *               - birthMonth
+ *               - birthYear
+ *               - weight
+ *               - height
+ *               - glucoseProfile
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *                 example: "francisco@example.com"
  *               password:
  *                 type: string
- *               name:
+ *                 minLength: 6
+ *                 description: Password (at least 6 characters, must contain letters and numbers)
+ *                 example: "Franfran123"
+ *               firstName:
  *                 type: string
- *               diabetesType:
+ *                 minLength: 2
+ *                 description: User's first name
+ *                 example: "Francisco"
+ *               lastName:
+ *                 type: string
+ *                 minLength: 2
+ *                 description: User's last name
+ *                 example: "Duca"
+ *               birthDay:
  *                 type: integer
- *                 enum: [1, 2]
+ *                 minimum: 1
+ *                 maximum: 31
+ *                 description: Day of birth
+ *                 example: 10
+ *               birthMonth:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 12
+ *                 description: Month of birth
+ *                 example: 5
+ *               birthYear:
+ *                 type: integer
+ *                 minimum: 1900
+ *                 description: Year of birth
+ *                 example: 1995
+ *               weight:
+ *                 type: number
+ *                 minimum: 0.1
+ *                 maximum: 1000
+ *                 description: User's weight in kg
+ *                 example: 60
+ *               height:
+ *                 type: number
+ *                 minimum: 0.1
+ *                 maximum: 300
+ *                 description: User's height in cm
+ *                 example: 165
+ *               glucoseProfile:
+ *                 type: string
+ *                 enum: [hypo, normal, hyper]
+ *                 description: User's glucose profile
+ *                 example: "normal"
  *     responses:
  *       201:
  *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User registered successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     token:
+ *                       type: string
+ *                       description: JWT authentication token
  *       400:
- *         description: Invalid input data
+ *         description: Validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Validation failed"
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["Email is required", "Password must be at least 6 characters"]
+ *                 error:
+ *                   type: string
+ *                   example: "VALIDATION_ERROR"
+ *       409:
+ *         description: User already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "A user with this email already exists"
+ *                 error:
+ *                   type: string
+ *                   example: "USER_EXISTS"
+ *       500:
+ *         description: Internal server error
  */
 router.post('/register', registerUser);
 
@@ -110,8 +218,13 @@ router.post('/register', registerUser);
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *                 example: "francisco@example.com"
  *               password:
  *                 type: string
+ *                 description: User's password
+ *                 example: "Franfran123"
  *     responses:
  *       200:
  *         description: Login successful
@@ -120,10 +233,26 @@ router.post('/register', registerUser);
  *             schema:
  *               type: object
  *               properties:
- *                 token:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
  *                   type: string
+ *                   example: "Login successful"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     token:
+ *                       type: string
+ *                       description: JWT authentication token
+ *       400:
+ *         description: Validation failed
  *       401:
  *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
  */
 router.post('/login', loginUser);
 

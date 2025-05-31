@@ -18,6 +18,7 @@ const insulin_routes_1 = __importDefault(require("./routes/insulin.routes"));
 const food_routes_1 = __importDefault(require("./routes/food.routes"));
 const debug_routes_1 = __importDefault(require("./routes/debug.routes"));
 const meals_routes_1 = __importDefault(require("./routes/meals.routes"));
+const dashboard_routes_1 = __importDefault(require("./routes/dashboard.routes"));
 const error_middleware_1 = require("./middleware/error.middleware");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -72,6 +73,7 @@ app.use('/api/activities', activity_routes_1.default);
 app.use('/api/insulin', insulin_routes_1.default);
 app.use('/api/food', food_routes_1.default);
 app.use('/api/meals', meals_routes_1.default);
+app.use('/api/dashboard', dashboard_routes_1.default);
 app.get('/', (req, res) => {
     res.redirect('/api/docs');
 });

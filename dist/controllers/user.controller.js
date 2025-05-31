@@ -4,162 +4,341 @@ exports.updateProfileImage = exports.deleteUser = exports.updateGlucoseTarget = 
 const app_1 = require("../app");
 const error_middleware_1 = require("../middleware/error.middleware");
 const auth_utils_1 = require("../utils/auth.utils");
+const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+};
+const isValidPassword = (password) => {
+    return password.length >= 6 && /[a-zA-Z]/.test(password) && /\d/.test(password);
+};
+const isValidName = (name) => {
+    return name.trim().length >= 2 && /^[a-zA-ZÀ-ÿ\s'-]+$/.test(name.trim());
+};
+const isValidDate = (day, month, year) => {
+    const currentYear = new Date().getFullYear();
+    const currentDate = new Date();
+    if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > currentYear) {
+        return false;
+    }
+    const inputDate = new Date(year, month - 1, day);
+    if (inputDate > currentDate) {
+        return false;
+    }
+    if (inputDate.getDate() !== day || inputDate.getMonth() !== month - 1 || inputDate.getFullYear() !== year) {
+        return false;
+    }
+    return true;
+};
 exports.registerUser = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     try {
         console.log('[registerUser] Starting registration process');
-        console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
+        console.log('[registerUser] Request IP:', req.ip);
+        console.log('[registerUser] User-Agent:', req.get('User-Agent'));
+        console.log('[registerUser] Content-Type:', req.get('Content-Type'));
         if (!req.body || Object.keys(req.body).length === 0) {
-            console.error('[registerUser] Empty request body or parsing error');
+            console.error('[registerUser] Empty request body');
             return res.status(400).json({
                 success: false,
-                message: 'Empty request body or JSON parsing error. Please check your request format.'
+                message: 'Request body is empty',
+                error: 'EMPTY_BODY'
             });
         }
+        console.log('[registerUser] Raw request body:', JSON.stringify(req.body, null, 2));
         const { email, password, firstName, lastName, birthDay, birthMonth, birthYear, weight, height, glucoseProfile } = req.body;
         const validationErrors = [];
-        if (!email)
-            validationErrors.push('email is required');
-        if (!password)
-            validationErrors.push('password is required');
-        if (!firstName)
-            validationErrors.push('firstName is required');
-        if (!lastName)
-            validationErrors.push('lastName is required');
-        if (!birthDay)
-            validationErrors.push('birthDay is required');
-        if (!birthMonth)
-            validationErrors.push('birthMonth is required');
-        if (!birthYear)
-            validationErrors.push('birthYear is required');
-        if (!weight)
-            validationErrors.push('weight is required');
-        if (!height)
-            validationErrors.push('height is required');
-        if (!glucoseProfile)
-            validationErrors.push('glucoseProfile is required');
+        if (!email) {
+            validationErrors.push('Email is required');
+        }
+        else if (typeof email !== 'string') {
+            validationErrors.push('Email must be a string');
+        }
+        else if (!isValidEmail(email.trim())) {
+            validationErrors.push('Please provide a valid email address');
+        }
+        if (!password) {
+            validationErrors.push('Password is required');
+        }
+        else if (typeof password !== 'string') {
+            validationErrors.push('Password must be a string');
+        }
+        else if (!isValidPassword(password)) {
+            validationErrors.push('Password must be at least 6 characters long and contain at least one letter and one number');
+        }
+        if (!firstName) {
+            validationErrors.push('First name is required');
+        }
+        else if (typeof firstName !== 'string') {
+            validationErrors.push('First name must be a string');
+        }
+        else if (!isValidName(firstName)) {
+            validationErrors.push('First name must be at least 2 characters long and contain only letters, spaces, hyphens, and apostrophes');
+        }
+        if (!lastName) {
+            validationErrors.push('Last name is required');
+        }
+        else if (typeof lastName !== 'string') {
+            validationErrors.push('Last name must be a string');
+        }
+        else if (!isValidName(lastName)) {
+            validationErrors.push('Last name must be at least 2 characters long and contain only letters, spaces, hyphens, and apostrophes');
+        }
+        if (birthDay === undefined || birthDay === null) {
+            validationErrors.push('Birth day is required');
+        }
+        else if (!Number.isInteger(Number(birthDay))) {
+            validationErrors.push('Birth day must be a valid integer');
+        }
+        if (birthMonth === undefined || birthMonth === null) {
+            validationErrors.push('Birth month is required');
+        }
+        else if (!Number.isInteger(Number(birthMonth))) {
+            validationErrors.push('Birth month must be a valid integer');
+        }
+        if (birthYear === undefined || birthYear === null) {
+            validationErrors.push('Birth year is required');
+        }
+        else if (!Number.isInteger(Number(birthYear))) {
+            validationErrors.push('Birth year must be a valid integer');
+        }
+        if (birthDay && birthMonth && birthYear) {
+            const day = Number(birthDay);
+            const month = Number(birthMonth);
+            const year = Number(birthYear);
+            if (!isValidDate(day, month, year)) {
+                validationErrors.push('Please provide a valid birth date');
+            }
+            const today = new Date();
+            const birthDate = new Date(year, month - 1, day);
+            const age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            }
+            if (age < 13) {
+                validationErrors.push('User must be at least 13 years old');
+            }
+            if (age > 120) {
+                validationErrors.push('Please provide a valid birth year');
+            }
+        }
+        if (weight === undefined || weight === null) {
+            validationErrors.push('Weight is required');
+        }
+        else if (isNaN(Number(weight))) {
+            validationErrors.push('Weight must be a valid number');
+        }
+        else {
+            const weightNum = Number(weight);
+            if (weightNum <= 0 || weightNum > 1000) {
+                validationErrors.push('Weight must be between 0.1 and 1000 kg');
+            }
+        }
+        if (height === undefined || height === null) {
+            validationErrors.push('Height is required');
+        }
+        else if (isNaN(Number(height))) {
+            validationErrors.push('Height must be a valid number');
+        }
+        else {
+            const heightNum = Number(height);
+            if (heightNum <= 0 || heightNum > 300) {
+                validationErrors.push('Height must be between 0.1 and 300 cm');
+            }
+        }
+        if (!glucoseProfile) {
+            validationErrors.push('Glucose profile is required');
+        }
+        else if (typeof glucoseProfile !== 'string') {
+            validationErrors.push('Glucose profile must be a string');
+        }
+        else if (!['hypo', 'normal', 'hyper'].includes(glucoseProfile.toLowerCase())) {
+            validationErrors.push('Glucose profile must be one of: hypo, normal, hyper');
+        }
         if (validationErrors.length > 0) {
             console.error('[registerUser] Validation errors:', validationErrors);
             return res.status(400).json({
                 success: false,
                 message: 'Validation failed',
-                errors: validationErrors
+                errors: validationErrors,
+                error: 'VALIDATION_ERROR'
             });
         }
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log('[registerUser] Checking if user exists:', normalizedEmail);
         const userExists = await app_1.prisma.user.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
         });
         if (userExists) {
-            console.log('[registerUser] User already exists:', email);
-            return res.status(400).json({
+            console.log('[registerUser] User already exists:', normalizedEmail);
+            return res.status(409).json({
                 success: false,
-                message: 'User already exists'
+                message: 'A user with this email already exists',
+                error: 'USER_EXISTS'
             });
         }
+        console.log('[registerUser] Hashing password...');
         const hashedPassword = await (0, auth_utils_1.hashPassword)(password);
-        console.log('[registerUser] Creating user with data:', {
-            email,
-            firstName,
-            lastName,
-            birthDay,
-            birthMonth,
-            birthYear,
-            weight,
-            height,
-            glucoseProfile
-        });
+        let minTarget = 70;
+        let maxTarget = 180;
+        switch (glucoseProfile.toLowerCase()) {
+            case 'hypo':
+                minTarget = 80;
+                maxTarget = 160;
+                break;
+            case 'hyper':
+                minTarget = 100;
+                maxTarget = 200;
+                break;
+            default:
+                minTarget = 70;
+                maxTarget = 180;
+                break;
+        }
+        console.log('[registerUser] Glucose targets set:', { minTarget, maxTarget, profile: glucoseProfile });
         const userData = {
-            email: String(email),
-            firstName: String(firstName),
-            lastName: String(lastName),
+            email: normalizedEmail,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
             password: hashedPassword,
             birthDay: parseInt(String(birthDay)),
             birthMonth: parseInt(String(birthMonth)),
             birthYear: parseInt(String(birthYear)),
             weight: parseFloat(String(weight)),
             height: parseFloat(String(height)),
-            glucoseProfile: String(glucoseProfile),
-            diabetesType: "type1"
+            glucoseProfile: glucoseProfile.toLowerCase(),
+            diabetesType: "type1",
+            minTargetGlucose: minTarget,
+            maxTargetGlucose: maxTarget,
         };
-        try {
-            const user = await app_1.prisma.user.create({
-                data: userData
-            });
-            console.log('[registerUser] User created successfully:', user.id);
-            let minTarget = 70;
-            let maxTarget = 180;
-            switch (glucoseProfile) {
-                case 'hypo':
-                    minTarget = 80;
-                    maxTarget = 160;
-                    break;
-                case 'hyper':
-                    minTarget = 100;
-                    maxTarget = 200;
-                    break;
+        console.log('[registerUser] Creating user with data (password hidden):', Object.assign(Object.assign({}, userData), { password: '[HIDDEN]' }));
+        const user = await app_1.prisma.user.create({
+            data: userData
+        });
+        console.log('[registerUser] User created successfully:', user.id);
+        const userWithoutPassword = (0, auth_utils_1.excludePassword)(user);
+        const token = (0, auth_utils_1.generateToken)(user.id);
+        return res.status(201).json({
+            success: true,
+            message: 'User registered successfully',
+            data: {
+                user: Object.assign(Object.assign({}, userWithoutPassword), { name: `${user.firstName} ${user.lastName}` }),
+                token
             }
-            await app_1.prisma.glucoseTarget.create({
-                data: {
-                    minTarget,
-                    maxTarget,
-                    userId: user.id,
-                },
-            });
-            console.log('[registerUser] Glucose target created for user:', user.id);
-            const userWithoutPassword = (0, auth_utils_1.excludePassword)(user);
-            return res.status(201).json({
-                success: true,
-                data: Object.assign(Object.assign({}, userWithoutPassword), { token: (0, auth_utils_1.generateToken)(user.id) })
-            });
-        }
-        catch (dbError) {
-            console.error('[registerUser] Database error:', dbError);
-            throw new Error('Error creating user in database');
-        }
+        });
     }
     catch (error) {
         console.error('[registerUser] Error details:', {
             message: error instanceof Error ? error.message : 'Unknown error',
             code: error instanceof Error && 'code' in error ? error.code : undefined,
             meta: error instanceof Error && 'meta' in error ? error.meta : undefined,
-            stack: error instanceof Error ? error.stack : undefined
+            stack: error instanceof Error ? error.stack : undefined,
+            name: error instanceof Error ? error.name : undefined
         });
-        return res.status(500).json({
-            success: false,
-            message: 'Error registering user',
-            error: error instanceof Error ? error.message : 'Unknown error',
-            details: process.env.NODE_ENV === 'development' ? error : undefined
-        });
+        if (error instanceof Error) {
+            const prismaError = error;
+            if (prismaError.code === 'P2002') {
+                return res.status(409).json({
+                    success: false,
+                    message: 'A user with this email already exists',
+                    error: 'DUPLICATE_EMAIL'
+                });
+            }
+            if (prismaError.code === 'P2003') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid foreign key constraint',
+                    error: 'FOREIGN_KEY_ERROR'
+                });
+            }
+            if (prismaError.code === 'P2025') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Record not found',
+                    error: 'RECORD_NOT_FOUND'
+                });
+            }
+        }
+        return res.status(500).json(Object.assign({ success: false, message: 'Internal server error during user registration', error: 'INTERNAL_ERROR' }, (process.env.NODE_ENV === 'development' && {
+            details: error instanceof Error ? error.message : 'Unknown error'
+        })));
     }
 });
 exports.loginUser = (0, error_middleware_1.asyncHandler)(async (req, res) => {
-    console.log('[loginUser] Attempt login for email:', req.body.email);
-    const { email, password } = req.body;
-    const user = await app_1.prisma.user.findUnique({
-        where: { email },
-    });
-    if (!user) {
-        console.log('[loginUser] User not found:', req.body.email);
-        res.status(401);
-        throw new Error('Invalid credentials');
+    try {
+        console.log('[loginUser] Starting login process');
+        console.log('[loginUser] Request IP:', req.ip);
+        console.log('[loginUser] User-Agent:', req.get('User-Agent'));
+        const { email, password } = req.body;
+        const validationErrors = [];
+        if (!email) {
+            validationErrors.push('Email is required');
+        }
+        else if (typeof email !== 'string') {
+            validationErrors.push('Email must be a string');
+        }
+        else if (!isValidEmail(email.trim())) {
+            validationErrors.push('Please provide a valid email address');
+        }
+        if (!password) {
+            validationErrors.push('Password is required');
+        }
+        else if (typeof password !== 'string') {
+            validationErrors.push('Password must be a string');
+        }
+        if (validationErrors.length > 0) {
+            console.log('[loginUser] Validation errors:', validationErrors);
+            return res.status(400).json({
+                success: false,
+                message: 'Validation failed',
+                errors: validationErrors,
+                error: 'VALIDATION_ERROR'
+            });
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log('[loginUser] Attempting login for email:', normalizedEmail);
+        const user = await app_1.prisma.user.findUnique({
+            where: { email: normalizedEmail },
+        });
+        if (!user) {
+            console.log('[loginUser] User not found:', normalizedEmail);
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password',
+                error: 'INVALID_CREDENTIALS'
+            });
+        }
+        console.log('[loginUser] User found, checking password for user:', user.id);
+        const isMatch = await (0, auth_utils_1.comparePassword)(password, user.password);
+        console.log('[loginUser] Password match result:', isMatch);
+        if (!isMatch) {
+            console.log('[loginUser] Invalid password for user:', normalizedEmail);
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password',
+                error: 'INVALID_CREDENTIALS'
+            });
+        }
+        console.log('[loginUser] Login successful for user:', user.id);
+        const userWithoutPassword = (0, auth_utils_1.excludePassword)(user);
+        return res.json({
+            success: true,
+            message: 'Login successful',
+            data: {
+                user: Object.assign(Object.assign({}, userWithoutPassword), { name: `${user.firstName} ${user.lastName}` }),
+                token: (0, auth_utils_1.generateToken)(user.id)
+            }
+        });
     }
-    const isMatch = await (0, auth_utils_1.comparePassword)(password, user.password);
-    console.log('[loginUser] Password match result:', isMatch);
-    if (!isMatch) {
-        console.log('[loginUser] Invalid password for user:', req.body.email);
-        res.status(401);
-        throw new Error('Invalid credentials');
+    catch (error) {
+        console.error('[loginUser] Error details:', error);
+        return res.status(500).json(Object.assign({ success: false, message: 'Internal server error during login', error: 'INTERNAL_ERROR' }, (process.env.NODE_ENV === 'development' && {
+            details: error instanceof Error ? error.message : 'Unknown error'
+        })));
     }
-    console.log('[loginUser] Login successful for user:', user.id);
-    const userWithoutPassword = (0, auth_utils_1.excludePassword)(user);
-    res.json(Object.assign(Object.assign({}, userWithoutPassword), { token: (0, auth_utils_1.generateToken)(user.id) }));
 });
 exports.getUserProfile = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     console.log('[getUserProfile] Fetching profile for user:', req.user.id);
     const user = await app_1.prisma.user.findUnique({
         where: { id: req.user.id },
-        include: {
-            glucoseTarget: true,
-        },
     });
     if (!user) {
         console.log('[getUserProfile] User not found:', req.user.id);
@@ -180,9 +359,6 @@ exports.updateUserProfile = (0, error_middleware_1.asyncHandler)(async (req, res
     const updateData = req.body;
     const user = await app_1.prisma.user.findUnique({
         where: { id: req.user.id },
-        include: {
-            glucoseTarget: true,
-        },
     });
     if (!user) {
         console.log('[updateUserProfile] User not found:', req.user.id);
@@ -193,9 +369,6 @@ exports.updateUserProfile = (0, error_middleware_1.asyncHandler)(async (req, res
     const updatedUser = await app_1.prisma.user.update({
         where: { id: req.user.id },
         data: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (updateData.firstName && { firstName: updateData.firstName })), (updateData.lastName && { lastName: updateData.lastName })), (updateData.email && { email: updateData.email })), (updateData.password && { password: await (0, auth_utils_1.hashPassword)(updateData.password) })), (updateData.birthDay && { birthDay: updateData.birthDay })), (updateData.birthMonth && { birthMonth: updateData.birthMonth })), (updateData.birthYear && { birthYear: updateData.birthYear })), (updateData.weight && { weight: updateData.weight })), (updateData.height && { height: updateData.height })), (updateData.glucoseProfile && { glucoseProfile: updateData.glucoseProfile })), (updateData.profileImage && { profileImage: updateData.profileImage })), (updateData.treatingDoctor !== undefined && { treatingDoctor: updateData.treatingDoctor })), (updateData.diagnosisDate && { diagnosisDate: updateData.diagnosisDate })),
-        include: {
-            glucoseTarget: true,
-        },
     });
     console.log('[updateUserProfile] User updated successfully:', req.user.id);
     const userWithoutPassword = (0, auth_utils_1.excludePassword)(updatedUser);
@@ -209,36 +382,34 @@ exports.updateGlucoseTarget = (0, error_middleware_1.asyncHandler)(async (req, r
     console.log('[updateGlucoseTarget] Update request for user:', req.user.id);
     console.log('[updateGlucoseTarget] Target values:', JSON.stringify(req.body, null, 2));
     const { minTarget, maxTarget } = req.body;
-    if (minTarget >= maxTarget) {
+    if (minTarget >= maxTarget || minTarget < 50 || maxTarget < 0 || maxTarget > 300) {
         console.log('[updateGlucoseTarget] Invalid target values:', { minTarget, maxTarget });
         res.status(400);
-        throw new Error('Min target must be less than max target');
+        throw new Error('Min target must be less than max target and both must be within valid ranges (min: 50, max: 300)');
     }
-    const target = await app_1.prisma.glucoseTarget.upsert({
-        where: {
-            userId: req.user.id
-        },
-        update: {
-            minTarget,
-            maxTarget,
-        },
-        create: {
-            minTarget,
-            maxTarget,
-            userId: req.user.id,
+    const user = await app_1.prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+            minTargetGlucose: minTarget,
+            maxTargetGlucose: maxTarget,
         },
     });
+    if (!user) {
+        console.log('[updateGlucoseTarget] User not found:', req.user.id);
+        res.status(404);
+        throw new Error('User not found');
+    }
     console.log('[updateGlucoseTarget] Target updated successfully for user:', req.user.id);
-    res.json(target);
+    res.json(user);
 });
 exports.deleteUser = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     console.log('[deleteUser] Delete request for user:', req.user.id);
     try {
         await app_1.prisma.$transaction([
-            app_1.prisma.glucoseTarget.deleteMany({ where: { userId: req.user.id } }),
             app_1.prisma.glucoseReading.deleteMany({ where: { userId: req.user.id } }),
             app_1.prisma.activity.deleteMany({ where: { userId: req.user.id } }),
-            app_1.prisma.insulinDose.deleteMany({ where: { userId: req.user.id } }),
+            app_1.prisma.meal.deleteMany({ where: { userId: req.user.id } }),
+            app_1.prisma.insulinPrediction.deleteMany({ where: { userId: req.user.id } }),
             app_1.prisma.user.delete({ where: { id: req.user.id } }),
         ]);
         console.log('[deleteUser] User and related data deleted successfully:', req.user.id);
