@@ -129,30 +129,6 @@ app.use('/api/food', foodRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Debug endpoint for troubleshooting
-app.get('/api/debug/config', (req: Request, res: Response) => {
-  res.json({
-    nodeEnv: process.env.NODE_ENV,
-    port: process.env.PORT,
-    hasJwtSecret: !!process.env.JWT_SECRET,
-    hasDatabaseUrl: !!process.env.DATABASE_URL,
-    databaseUrlPreview: process.env.DATABASE_URL ? 
-      process.env.DATABASE_URL.substring(0, 20) + '...' : 'Not set',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
-
-// Simple test endpoint
-app.get('/api/test', (req: Request, res: Response) => {
-  res.json({
-    message: 'Server is responding',
-    timestamp: new Date().toISOString(),
-    method: req.method,
-    url: req.url
-  });
-});
-
 // Root path redirect to API docs
 app.get('/', (req: Request, res: Response) => {
   res.redirect('/api/docs');
@@ -179,51 +155,7 @@ app.use((err: any, req: Request, res: Response, next: any) => {
   });
 });
 
-// Server setup
-const port = Number(process.env.PORT) || 3000;
-
-if (require.main === module) {
-  // Connect to database first
-  connectDatabase().then(() => {
-    const server = app.listen(port, '0.0.0.0', () => {
-      console.log(`⚡️[server]: Server is running on port ${port}`);
-      console.log('Environment:', process.env.NODE_ENV);
-      console.log('Database connection established');
-      console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
-      console.log(`❤️ Health Check: http://localhost:${port}/health`);
-    });
-
-    const shutdown = async () => {
-      console.log('Shutting down gracefully...');
-      try {
-        await prisma.$disconnect();
-        console.log('Database disconnected');
-      } catch (error) {
-        console.error('Error disconnecting database:', error);
-      }
-      server.close(() => {
-        console.log('Server closed');
-        process.exit(0);
-      });
-    };
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-    
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
-      shutdown();
-    });
-    
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      shutdown();
-    });
-  }).catch((error) => {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  });
-}
+// Export the connectDatabase function for use in start.js
+export { connectDatabase };
 
 export default app;

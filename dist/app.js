@@ -102,26 +102,6 @@ app.use('/api/insulin', insulin_routes_1.default);
 app.use('/api/food', food_routes_1.default);
 app.use('/api/meals', meals_routes_1.default);
 app.use('/api/dashboard', dashboard_routes_1.default);
-app.get('/api/debug/config', (req, res) => {
-    res.json({
-        nodeEnv: process.env.NODE_ENV,
-        port: process.env.PORT,
-        hasJwtSecret: !!process.env.JWT_SECRET,
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-        databaseUrlPreview: process.env.DATABASE_URL ?
-            process.env.DATABASE_URL.substring(0, 20) + '...' : 'Not set',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
-app.get('/api/test', (req, res) => {
-    res.json({
-        message: 'Server is responding',
-        timestamp: new Date().toISOString(),
-        method: req.method,
-        url: req.url
-    });
-});
 app.get('/', (req, res) => {
     res.redirect('/api/docs');
 });
