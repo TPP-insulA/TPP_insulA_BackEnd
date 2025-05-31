@@ -56,45 +56,50 @@ exports.createMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
             fat: 0,
             calories: 0
         });
-        const meal = await app_1.prisma.meal.create({
-            data: Object.assign(Object.assign({ name,
-                description,
-                type }, totals), { photo, timestamp: mealTimestamp, userId: req.user.id, mealFoods: {
-                    create: await Promise.all(foods.map(async (food) => {
-                        const createdFood = await app_1.prisma.food.create({
-                            data: {
-                                name: food.name,
-                                carbs: food.carbs,
-                                protein: food.protein,
-                                fat: food.fat,
-                                calories: food.calories,
-                                servingSize: food.servingSize
-                            }
-                        });
-                        return {
-                            quantity: food.quantity,
-                            foodId: createdFood.id
-                        };
-                    }))
-                } }),
-            include: {
-                mealFoods: {
-                    include: {
-                        food: true
+        const result = await app_1.prisma.$transaction(async (tx) => {
+            const meal = await tx.meal.create({
+                data: Object.assign(Object.assign({ name,
+                    description,
+                    type }, totals), { photo, timestamp: mealTimestamp, userId: req.user.id, mealFoods: {
+                        create: await Promise.all(foods.map(async (food) => {
+                            const createdFood = await app_1.prisma.food.create({
+                                data: {
+                                    name: food.name,
+                                    carbs: food.carbs,
+                                    protein: food.protein,
+                                    fat: food.fat,
+                                    calories: food.calories,
+                                    servingSize: food.servingSize
+                                }
+                            });
+                            return {
+                                quantity: food.quantity,
+                                foodId: createdFood.id
+                            };
+                        }))
+                    } }),
+                include: {
+                    mealFoods: {
+                        include: {
+                            food: true
+                        }
                     }
                 }
-            }
+            });
+            const activity = await tx.activity.create({
+                data: {
+                    type: 'meal',
+                    value: totals.calories,
+                    mealType: type,
+                    carbs: totals.carbs,
+                    timestamp: mealTimestamp,
+                    userId: req.user.id,
+                    sourceId: meal.id,
+                }
+            });
+            return { meal, activity };
         });
-        await app_1.prisma.activity.create({
-            data: {
-                type: 'meal',
-                value: totals.calories,
-                mealType: type,
-                carbs: totals.carbs,
-                timestamp: mealTimestamp,
-                userId: req.user.id
-            }
-        });
+        const meal = result.meal;
         res.status(201).json({
             success: true,
             data: meal
@@ -215,15 +220,15 @@ exports.deleteMeal = (0, error_middleware_1.asyncHandler)(async (req, res) => {
             return;
         }
         await app_1.prisma.$transaction([
-            app_1.prisma.meal.delete({
-                where: { id }
-            }),
             app_1.prisma.activity.deleteMany({
                 where: {
-                    type: 'meal',
                     userId: req.user.id,
-                    timestamp: meal.timestamp
+                    type: 'meal',
+                    sourceId: id,
                 }
+            }),
+            app_1.prisma.meal.delete({
+                where: { id }
             })
         ]);
         res.json({

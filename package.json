@@ -1,10 +1,10 @@
 {
   "name": "tpp_insula_backend",
   "version": "1.0.0",
-  "description": "Backend para aplicación de control de insulina",
-  "main": "dist/app.js",
-  "scripts": {
-    "start": "node dist/app.js",
+  "description": "Backend para aplicación de control de insulina",  "main": "start.js",  "scripts": {
+    "start": "node start.js",
+    "start:prod": "NODE_ENV=production node start.js",
+    "start:simple": "node dist/app.js",
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "rimraf dist && tsc && npm run copy-files",
     "copy-files": "copyfiles -u 1 \"src/**/*.d.ts\" dist/ && copyfiles -u 1 \"prisma/**/*\" dist/",
