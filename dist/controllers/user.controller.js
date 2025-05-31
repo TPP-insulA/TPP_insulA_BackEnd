@@ -409,7 +409,6 @@ exports.deleteUser = (0, error_middleware_1.asyncHandler)(async (req, res) => {
             app_1.prisma.glucoseReading.deleteMany({ where: { userId: req.user.id } }),
             app_1.prisma.activity.deleteMany({ where: { userId: req.user.id } }),
             app_1.prisma.meal.deleteMany({ where: { userId: req.user.id } }),
-            app_1.prisma.insulinPrediction.deleteMany({ where: { userId: req.user.id } }),
             app_1.prisma.user.delete({ where: { id: req.user.id } }),
         ]);
         console.log('[deleteUser] User and related data deleted successfully:', req.user.id);
