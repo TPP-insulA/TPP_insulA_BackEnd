@@ -19,5 +19,6 @@ router.route('/predictions')
     .get(insulin_controller_1.getInsulinPredictions);
 router.put('/:id', auth_middleware_1.protect, insulin_controller_1.updateInsulinPrediction);
 router.delete('/:id', auth_middleware_1.protect, insulin_controller_1.deleteInsulinPrediction);
+router.get('/', auth_middleware_1.protect, insulin_controller_1.getInsulinPredictions);
 exports.default = router;
 //# sourceMappingURL=insulin.routes.js.map

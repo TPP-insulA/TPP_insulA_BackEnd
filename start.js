@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 
 // Load environment variables from .env file
-// require('dotenv').config();
-
-// Hardcoded values
-process.env.DATABASE_URL = "postgresql://postgres:hKVYqEDETSFYHXbSRZpNWkvfaOoztfIy@interchange.proxy.rlwy.net:37347/railway";
-process.env.PORT = 3000;
-process.env.NODE_ENV = "development";
+require('dotenv').config();
 
 // Startup script with better error handling and database connection retry
 console.log('🚀 Starting server...');
@@ -36,8 +31,7 @@ async function performHealthCheck() {
 }
 
 function checkEnvironmentVariables() {
-  // Comment out environment variable check since we're using hardcoded values
-  return { healthy: true, details: 'Using hardcoded values' };
+
   
   // const requiredVars = ['DATABASE_URL', 'PORT', 'NODE_ENV'];
   // const missingVars = requiredVars.filter(varName => !process.env[varName]);
