@@ -31,19 +31,17 @@ async function performHealthCheck() {
 }
 
 function checkEnvironmentVariables() {
-
+  const requiredVars = ['DATABASE_URL', 'PORT', 'NODE_ENV'];
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
   
-  // const requiredVars = ['DATABASE_URL', 'PORT', 'NODE_ENV'];
-  // const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  if (missingVars.length > 0) {
+    return {
+      healthy: false,
+      details: `Missing required environment variables: ${missingVars.join(', ')}`
+    };
+  }
   
-  // if (missingVars.length > 0) {
-  //   return {
-  //     healthy: false,
-  //     details: `Missing required environment variables: ${missingVars.join(', ')}`
-  //   };
-  // }
-  
-  // return { healthy: true, details: 'All required environment variables are set' };
+  return { healthy: true, details: 'All required environment variables are set' };
 }
 
 // Add database url
