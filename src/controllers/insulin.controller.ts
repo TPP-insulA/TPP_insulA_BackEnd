@@ -5,6 +5,7 @@ import {
   InsulinPredictionData, 
 } from '../models';
 import { getLastDigit } from '../utils/string.utils';
+import { getModelPrediction } from '../utils/model.utils';
 
 
 export const updateInsulinPrediction = asyncHandler(async (req: Request, res: Response) => {
@@ -83,6 +84,9 @@ export const deleteInsulinPrediction = asyncHandler(async (req: Request, res: Re
 });
 
 export const calculateInsulinPrediction = asyncHandler(async (req: Request, res: Response) => {
+  console.log('[calculateInsulinPrediction] Starting prediction calculation');
+  console.log('[calculateInsulinPrediction] Request body:', JSON.stringify(req.body, null, 2));
+  
   const { 
     date,
     cgmPrev,
@@ -94,51 +98,87 @@ export const calculateInsulinPrediction = asyncHandler(async (req: Request, res:
     activityLevel,
   }: InsulinPredictionData = req.body;
   
-  //Calculo de insulina es aleatorio
-  const randomNumber = String(Math.random());
-  //ultimo digito de random number
-  const recommendedDose = Number(getLastDigit(randomNumber)) || 1;
-  console.log('Recommended dose:', recommendedDose);
-
-  const data = {
-    userId: req.user.id,
-    date: new Date(date),
-    cgmPrev: cgmPrev,
-    glucoseObjective: glucoseObjective,
-    carbs: carbs,
-    insulinOnBoard: insulinOnBoard,
-    sleepLevel: sleepLevel,
-    workLevel: workLevel,
-    activityLevel: activityLevel,
-    recommendedDose: recommendedDose,
-    applyDose: null,
-    cgmPost: []
-  };
-  
-  // Create calculation record and associated activity atomically
-  const result = await prisma.$transaction(async (tx) => {
-    const insulinPrediction = await tx.insulinPrediction.create({
-      data
+  try {
+    console.log('[calculateInsulinPrediction] Preparing data for model prediction');
+    console.log('[calculateInsulinPrediction] Input parameters:', {
+      date,
+      cgmPrevLength: cgmPrev.length,
+      glucoseObjective,
+      carbs,
+      insulinOnBoard,
+      sleepLevel,
+      workLevel,
+      activityLevel
     });
-    const activity = await tx.activity.create({
-      data: {
-        type: 'insulin',
-        value: recommendedDose,
-        timestamp: new Date(date),
-        userId: req.user.id,
-        sourceId: insulinPrediction.id,
-      },
-    });
-    return { insulinPrediction, activity };
-  });
-  const predictionId = result.insulinPrediction.id;
 
-  // Remove userId from the response and add predictionId as id
-  const responseData = {
-    ...data,
-    id: predictionId,
-  };
-  res.json(responseData);
+    // Get prediction from the DRL model
+    console.log('[calculateInsulinPrediction] Calling model prediction');
+    const recommendedDose = await getModelPrediction({
+      date,
+      cgmPrev,
+      glucoseObjective,
+      carbs,
+      insulinOnBoard,
+      sleepLevel,
+      workLevel,
+      activityLevel,
+    });
+    
+    console.log('[calculateInsulinPrediction] Model prediction received:', recommendedDose);
+
+    const data = {
+      userId: req.user.id,
+      date: new Date(date),
+      cgmPrev: cgmPrev,
+      glucoseObjective: glucoseObjective,
+      carbs: carbs,
+      insulinOnBoard: insulinOnBoard,
+      sleepLevel: sleepLevel,
+      workLevel: workLevel,
+      activityLevel: activityLevel,
+      recommendedDose: recommendedDose,
+      applyDose: null,
+      cgmPost: []
+    };
+    
+    console.log('[calculateInsulinPrediction] Creating database records');
+    // Create calculation record and associated activity atomically
+    const result = await prisma.$transaction(async (tx) => {
+      console.log('[calculateInsulinPrediction] Creating insulin prediction record');
+      const insulinPrediction = await tx.insulinPrediction.create({
+        data
+      });
+      console.log('[calculateInsulinPrediction] Creating activity record');
+      const activity = await tx.activity.create({
+        data: {
+          type: 'insulin',
+          value: recommendedDose,
+          timestamp: new Date(date),
+          userId: req.user.id,
+          sourceId: insulinPrediction.id,
+        },
+      });
+      return { insulinPrediction, activity };
+    });
+    const predictionId = result.insulinPrediction.id;
+    console.log('[calculateInsulinPrediction] Records created successfully. Prediction ID:', predictionId);
+
+    // Remove userId from the response and add predictionId as id
+    const responseData = {
+      ...data,
+      id: predictionId,
+    };
+    console.log('[calculateInsulinPrediction] Sending response:', JSON.stringify(responseData, null, 2));
+    res.json(responseData);
+  } catch (error) {
+    console.error('[calculateInsulinPrediction] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
+    res.status(500);
+    throw new Error('Failed to calculate insulin prediction');
+  }
 });
 
 export const getInsulinPredictions = asyncHandler(async (req: Request, res: Response) => {

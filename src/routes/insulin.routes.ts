@@ -80,8 +80,8 @@ import rateLimit from 'express-rate-limit';
  * @swagger
  * /api/insulin/calculate:
  *   post:
- *     summary: Calcular y registrar una predicción de insulina
  *     tags: [Insulin]
+ *     summary: Calculate insulin dose prediction
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -89,14 +89,103 @@ import rateLimit from 'express-rate-limit';
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/InsulinPrediction'
+ *             type: object
+ *             required:
+ *               - date
+ *               - cgmPrev
+ *               - glucoseObjective
+ *               - carbs
+ *               - insulinOnBoard
+ *               - sleepLevel
+ *               - workLevel
+ *               - activityLevel
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Date and time of the prediction
+ *                 example: "2024-03-20T14:30:00Z"
+ *               cgmPrev:
+ *                 type: array
+ *                 items:
+ *                   type: number
+ *                 description: Array of previous CGM values
+ *                 example: [120, 125, 130, 135, 140]
+ *               glucoseObjective:
+ *                 type: number
+ *                 description: Target glucose level
+ *                 example: 100
+ *               carbs:
+ *                 type: number
+ *                 description: Amount of carbohydrates
+ *                 example: 45
+ *               insulinOnBoard:
+ *                 type: number
+ *                 description: Current insulin on board
+ *                 example: 2.5
+ *               sleepLevel:
+ *                 type: number
+ *                 minimum: 1
+ *                 maximum: 3
+ *                 description: Sleep level (1-3)
+ *                 example: 1
+ *               workLevel:
+ *                 type: number
+ *                 minimum: 1
+ *                 maximum: 3
+ *                 description: Work level (1-3)
+ *                 example: 2
+ *               activityLevel:
+ *                 type: number
+ *                 minimum: 1
+ *                 maximum: 3
+ *                 description: Activity level (1-3)
+ *                 example: 1
  *     responses:
  *       200:
- *         description: Predicción de insulina calculada y registrada
+ *         description: Insulin prediction calculated successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/InsulinPrediction'
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   description: Prediction ID
+ *                 date:
+ *                   type: string
+ *                   format: date-time
+ *                 cgmPrev:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *                 glucoseObjective:
+ *                   type: number
+ *                 carbs:
+ *                   type: number
+ *                 insulinOnBoard:
+ *                   type: number
+ *                 sleepLevel:
+ *                   type: number
+ *                 workLevel:
+ *                   type: number
+ *                 activityLevel:
+ *                   type: number
+ *                 recommendedDose:
+ *                   type: number
+ *                 applyDose:
+ *                   type: number
+ *                   nullable: true
+ *                 cgmPost:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *       400:
+ *         description: Invalid input data
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
  */
 
 /**
@@ -122,8 +211,8 @@ import rateLimit from 'express-rate-limit';
  * @swagger
  * /api/insulin/{id}:
  *   put:
- *     summary: Actualizar una predicción de insulina
  *     tags: [Insulin]
+ *     summary: Update insulin prediction
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -132,39 +221,37 @@ import rateLimit from 'express-rate-limit';
  *         required: true
  *         schema:
  *           type: string
- *         description: ID de la predicción de insulina
+ *         description: Prediction ID
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - applyDose
+ *               - cgmPost
  *             properties:
  *               applyDose:
  *                 type: number
- *                 description: Dosis aplicada
+ *                 description: Applied insulin dose
  *               cgmPost:
  *                 type: array
  *                 items:
  *                   type: number
- *                 description: Lecturas CGM posteriores
+ *                 description: Post-dose CGM values
  *     responses:
  *       200:
- *         description: Predicción de insulina actualizada
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 applyDose:
- *                   type: number
- *                 cgmPost:
- *                   type: array
- *                   items:
- *                     type: number
+ *         description: Prediction updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Prediction not found
+ *       500:
+ *         description: Server error
  *   delete:
- *     summary: Eliminar una predicción de insulina
  *     tags: [Insulin]
+ *     summary: Delete insulin prediction
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -173,17 +260,16 @@ import rateLimit from 'express-rate-limit';
  *         required: true
  *         schema:
  *           type: string
- *         description: ID de la predicción de insulina
+ *         description: Prediction ID
  *     responses:
  *       200:
- *         description: Predicción de insulina eliminada correctamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
+ *         description: Prediction deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Prediction not found
+ *       500:
+ *         description: Server error
  */
 
 const router = Router();
@@ -201,8 +287,8 @@ router.use(apiLimiter);
  * @swagger
  * /api/insulin/calculate:
  *   post:
- *     summary: Calcular y registrar una predicción de insulina
  *     tags: [Insulin]
+ *     summary: Calculate insulin dose prediction
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -210,14 +296,103 @@ router.use(apiLimiter);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/InsulinPrediction'
+ *             type: object
+ *             required:
+ *               - date
+ *               - cgmPrev
+ *               - glucoseObjective
+ *               - carbs
+ *               - insulinOnBoard
+ *               - sleepLevel
+ *               - workLevel
+ *               - activityLevel
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Date and time of the prediction
+ *                 example: "2024-03-20T14:30:00Z"
+ *               cgmPrev:
+ *                 type: array
+ *                 items:
+ *                   type: number
+ *                 description: Array of previous CGM values
+ *                 example: [120, 125, 130, 135, 140]
+ *               glucoseObjective:
+ *                 type: number
+ *                 description: Target glucose level
+ *                 example: 100
+ *               carbs:
+ *                 type: number
+ *                 description: Amount of carbohydrates
+ *                 example: 45
+ *               insulinOnBoard:
+ *                 type: number
+ *                 description: Current insulin on board
+ *                 example: 2.5
+ *               sleepLevel:
+ *                 type: number
+ *                 minimum: 1
+ *                 maximum: 3
+ *                 description: Sleep level (1-3)
+ *                 example: 1
+ *               workLevel:
+ *                 type: number
+ *                 minimum: 1
+ *                 maximum: 3
+ *                 description: Work level (1-3)
+ *                 example: 2
+ *               activityLevel:
+ *                 type: number
+ *                 minimum: 1
+ *                 maximum: 3
+ *                 description: Activity level (1-3)
+ *                 example: 1
  *     responses:
  *       200:
- *         description: Predicción de insulina calculada y registrada
+ *         description: Insulin prediction calculated successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/InsulinPrediction'
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   description: Prediction ID
+ *                 date:
+ *                   type: string
+ *                   format: date-time
+ *                 cgmPrev:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *                 glucoseObjective:
+ *                   type: number
+ *                 carbs:
+ *                   type: number
+ *                 insulinOnBoard:
+ *                   type: number
+ *                 sleepLevel:
+ *                   type: number
+ *                 workLevel:
+ *                   type: number
+ *                 activityLevel:
+ *                   type: number
+ *                 recommendedDose:
+ *                   type: number
+ *                 applyDose:
+ *                   type: number
+ *                   nullable: true
+ *                 cgmPost:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *       400:
+ *         description: Invalid input data
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
  */
 router.post('/calculate', calculateInsulinPrediction);
 
@@ -242,13 +417,12 @@ router.post('/calculate', calculateInsulinPrediction);
 router.route('/predictions')
   .get(getInsulinPredictions)
 
-
 /**
  * @swagger
  * /api/insulin/{id}:
  *   put:
- *     summary: Actualizar una predicción de insulina
  *     tags: [Insulin]
+ *     summary: Update insulin prediction
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -257,39 +431,37 @@ router.route('/predictions')
  *         required: true
  *         schema:
  *           type: string
- *         description: ID de la predicción de insulina
+ *         description: Prediction ID
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - applyDose
+ *               - cgmPost
  *             properties:
  *               applyDose:
  *                 type: number
- *                 description: Dosis aplicada
+ *                 description: Applied insulin dose
  *               cgmPost:
  *                 type: array
  *                 items:
  *                   type: number
- *                 description: Lecturas CGM posteriores
+ *                 description: Post-dose CGM values
  *     responses:
  *       200:
- *         description: Predicción de insulina actualizada
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 applyDose:
- *                   type: number
- *                 cgmPost:
- *                   type: array
- *                   items:
- *                     type: number
+ *         description: Prediction updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Prediction not found
+ *       500:
+ *         description: Server error
  *   delete:
- *     summary: Eliminar una predicción de insulina
  *     tags: [Insulin]
+ *     summary: Delete insulin prediction
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -298,19 +470,73 @@ router.route('/predictions')
  *         required: true
  *         schema:
  *           type: string
- *         description: ID de la predicción de insulina
+ *         description: Prediction ID
  *     responses:
  *       200:
- *         description: Predicción de insulina eliminada correctamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
+ *         description: Prediction deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Prediction not found
+ *       500:
+ *         description: Server error
  */
 router.put('/:id', protect, updateInsulinPrediction);
 router.delete('/:id', protect, deleteInsulinPrediction);
+
+/**
+ * @swagger
+ * /api/insulin:
+ *   get:
+ *     tags: [Insulin]
+ *     summary: Get all insulin predictions for the user
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of insulin predictions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                     format: date-time
+ *                   cgmPrev:
+ *                     type: array
+ *                     items:
+ *                       type: number
+ *                   glucoseObjective:
+ *                     type: number
+ *                   carbs:
+ *                     type: number
+ *                   insulinOnBoard:
+ *                     type: number
+ *                   sleepLevel:
+ *                     type: number
+ *                   workLevel:
+ *                     type: number
+ *                   activityLevel:
+ *                     type: number
+ *                   recommendedDose:
+ *                     type: number
+ *                   applyDose:
+ *                     type: number
+ *                     nullable: true
+ *                   cgmPost:
+ *                     type: array
+ *                     items:
+ *                       type: number
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/', protect, getInsulinPredictions);
 
 export default router;

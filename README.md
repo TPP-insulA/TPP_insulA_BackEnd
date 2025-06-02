@@ -101,12 +101,24 @@ npm start
 - `GET /api/food/search` - Buscar alimentos en base de datos
 
 ### Insulina
+- `POST /api/insulin/calculate` - Calcular dosis de insulina recomendada
+  - Campos requeridos:
+    - `date`: Fecha y hora en formato ISO (ej: "2024-03-20T14:30:00Z")
+    - `cgmPrev`: Array de valores previos de CGM (números positivos)
+    - `glucoseObjective`: Nivel objetivo de glucosa (número positivo)
+    - `carbs`: Cantidad de carbohidratos (número no negativo)
+    - `insulinOnBoard`: Insulina activa actual (número no negativo)
+    - `sleepLevel`: Nivel de sueño (1-3)
+    - `workLevel`: Nivel de trabajo (1-3)
+    - `activityLevel`: Nivel de actividad (1-3)
+  - Retorna la predicción con la dosis recomendada
 - `GET /api/insulin` - Obtener todas las dosis
 - `GET /api/insulin/stats` - Obtener estadísticas de insulina
-- `GET /api/insulin/predict` - Predecir dosis de insulina
 - `GET /api/insulin/:id` - Obtener una dosis específica
-- `POST /api/insulin` - Registrar nueva dosis
 - `PUT /api/insulin/:id` - Actualizar una dosis
+  - Campos requeridos:
+    - `applyDose`: Dosis de insulina aplicada
+    - `cgmPost`: Array de valores CGM posteriores
 - `DELETE /api/insulin/:id` - Eliminar una dosis
 
 ### Documentación

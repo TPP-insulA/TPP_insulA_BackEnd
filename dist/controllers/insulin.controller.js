@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInsulinPredictions = exports.calculateInsulinPrediction = exports.deleteInsulinPrediction = exports.updateInsulinPrediction = void 0;
 const app_1 = require("../app");
 const error_middleware_1 = require("../middleware/error.middleware");
-const string_utils_1 = require("../utils/string.utils");
+const model_utils_1 = require("../utils/model.utils");
 exports.updateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
     const { applyDose, cgmPost, } = req.body;
@@ -65,42 +65,80 @@ exports.deleteInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (re
     res.json({ success: true });
 });
 exports.calculateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+    console.log('[calculateInsulinPrediction] Starting prediction calculation');
+    console.log('[calculateInsulinPrediction] Request body:', JSON.stringify(req.body, null, 2));
     const { date, cgmPrev, glucoseObjective, carbs, insulinOnBoard, sleepLevel, workLevel, activityLevel, } = req.body;
-    const randomNumber = String(Math.random());
-    const recommendedDose = Number((0, string_utils_1.getLastDigit)(randomNumber)) || 1;
-    console.log('Recommended dose:', recommendedDose);
-    const data = {
-        userId: req.user.id,
-        date: new Date(date),
-        cgmPrev: cgmPrev,
-        glucoseObjective: glucoseObjective,
-        carbs: carbs,
-        insulinOnBoard: insulinOnBoard,
-        sleepLevel: sleepLevel,
-        workLevel: workLevel,
-        activityLevel: activityLevel,
-        recommendedDose: recommendedDose,
-        applyDose: null,
-        cgmPost: []
-    };
-    const result = await app_1.prisma.$transaction(async (tx) => {
-        const insulinPrediction = await tx.insulinPrediction.create({
-            data
+    try {
+        console.log('[calculateInsulinPrediction] Preparing data for model prediction');
+        console.log('[calculateInsulinPrediction] Input parameters:', {
+            date,
+            cgmPrevLength: cgmPrev.length,
+            glucoseObjective,
+            carbs,
+            insulinOnBoard,
+            sleepLevel,
+            workLevel,
+            activityLevel
         });
-        const activity = await tx.activity.create({
-            data: {
-                type: 'insulin',
-                value: recommendedDose,
-                timestamp: new Date(date),
-                userId: req.user.id,
-                sourceId: insulinPrediction.id,
-            },
+        console.log('[calculateInsulinPrediction] Calling model prediction');
+        const recommendedDose = await (0, model_utils_1.getModelPrediction)({
+            date,
+            cgmPrev,
+            glucoseObjective,
+            carbs,
+            insulinOnBoard,
+            sleepLevel,
+            workLevel,
+            activityLevel,
         });
-        return { insulinPrediction, activity };
-    });
-    const predictionId = result.insulinPrediction.id;
-    const responseData = Object.assign(Object.assign({}, data), { id: predictionId });
-    res.json(responseData);
+        console.log('[calculateInsulinPrediction] Model prediction received:', recommendedDose);
+        const data = {
+            userId: req.user.id,
+            date: new Date(date),
+            cgmPrev: cgmPrev,
+            glucoseObjective: glucoseObjective,
+            carbs: carbs,
+            insulinOnBoard: insulinOnBoard,
+            sleepLevel: sleepLevel,
+            workLevel: workLevel,
+            activityLevel: activityLevel,
+            recommendedDose: recommendedDose,
+            applyDose: null,
+            cgmPost: []
+        };
+        console.log('[calculateInsulinPrediction] Creating database records');
+        const result = await app_1.prisma.$transaction(async (tx) => {
+            console.log('[calculateInsulinPrediction] Creating insulin prediction record');
+            const insulinPrediction = await tx.insulinPrediction.create({
+                data
+            });
+            console.log('[calculateInsulinPrediction] Creating activity record');
+            const activity = await tx.activity.create({
+                data: {
+                    type: 'insulin',
+                    value: recommendedDose,
+                    timestamp: new Date(date),
+                    userId: req.user.id,
+                    sourceId: insulinPrediction.id,
+                },
+            });
+            return { insulinPrediction, activity };
+        });
+        const predictionId = result.insulinPrediction.id;
+        console.log('[calculateInsulinPrediction] Records created successfully. Prediction ID:', predictionId);
+        const responseData = Object.assign(Object.assign({}, data), { id: predictionId });
+        console.log('[calculateInsulinPrediction] Sending response:', JSON.stringify(responseData, null, 2));
+        res.json(responseData);
+    }
+    catch (error) {
+        console.error('[calculateInsulinPrediction] Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            name: error instanceof Error ? error.name : undefined
+        });
+        res.status(500);
+        throw new Error('Failed to calculate insulin prediction');
+    }
 });
 exports.getInsulinPredictions = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const predictions = await app_1.prisma.insulinPrediction.findMany({

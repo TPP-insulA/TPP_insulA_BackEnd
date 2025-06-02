@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.prisma = void 0;
+exports.connectDatabase = connectDatabase;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
@@ -123,44 +124,5 @@ app.use((err, req, res, next) => {
         environment: process.env.NODE_ENV
     });
 });
-const port = Number(process.env.PORT) || 3000;
-if (require.main === module) {
-    connectDatabase().then(() => {
-        const server = app.listen(port, '0.0.0.0', () => {
-            console.log(`⚡️[server]: Server is running on port ${port}`);
-            console.log('Environment:', process.env.NODE_ENV);
-            console.log('Database connection established');
-            console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
-            console.log(`❤️ Health Check: http://localhost:${port}/health`);
-        });
-        const shutdown = async () => {
-            console.log('Shutting down gracefully...');
-            try {
-                await exports.prisma.$disconnect();
-                console.log('Database disconnected');
-            }
-            catch (error) {
-                console.error('Error disconnecting database:', error);
-            }
-            server.close(() => {
-                console.log('Server closed');
-                process.exit(0);
-            });
-        };
-        process.on('SIGTERM', shutdown);
-        process.on('SIGINT', shutdown);
-        process.on('uncaughtException', (error) => {
-            console.error('Uncaught Exception:', error);
-            shutdown();
-        });
-        process.on('unhandledRejection', (reason, promise) => {
-            console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-            shutdown();
-        });
-    }).catch((error) => {
-        console.error('Failed to start server:', error);
-        process.exit(1);
-    });
-}
 exports.default = app;
 //# sourceMappingURL=app.js.map
