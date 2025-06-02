@@ -55,6 +55,7 @@ def predict_insulin(data):
         logger.info('Getting prediction from model')
         action, _ = model.predict(obs, deterministic=True)
         total_dose = float(action[0])
+        total_dose = round(total_dose, 2)
         logger.info(f'Model prediction: {total_dose}')
         
         # Return the prediction
@@ -84,4 +85,4 @@ if __name__ == "__main__":
         logger.info('Prediction completed and result sent')
     except Exception as e:
         logger.error(f'Error in main: {str(e)}', exc_info=True)
-        print(json.dumps({"error": str(e)})) 
+        print(json.dumps({"error": str(e)}))
