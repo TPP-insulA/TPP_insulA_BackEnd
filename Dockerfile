@@ -1,9 +1,17 @@
-FROM node:18-alpine
+FROM node:18-bullseye
 
 WORKDIR /app
 
 # Install build dependencies and OpenSSL
-RUN apk add --no-cache python3 python3-dev py3-pip make g++ openssl openssl-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-dev \
+    python3-pip \
+    make \
+    g++ \
+    openssl \
+    libssl-dev \
+ && rm -rf /var/lib/apt/lists/*
 
 # Set up Python virtual environment
 ENV VIRTUAL_ENV=/app/venv
