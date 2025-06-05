@@ -404,11 +404,7 @@ exports.getUserProfile = (0, error_middleware_1.asyncHandler)(async (req, res) =
     }
     console.log('[getUserProfile] Profile fetched successfully for user:', req.user.id);
     const userWithoutPassword = (0, auth_utils_1.excludePassword)(user);
-    res.json(Object.assign(Object.assign({}, userWithoutPassword), { name: `${user.firstName} ${user.lastName}`, email: user.email, medicalInfo: {
-            diabetesType: "type1",
-            diagnosisDate: user.diagnosisDate,
-            treatingDoctor: user.treatingDoctor || 'No asignado',
-        }, profileImage: user.profileImage || null }));
+    res.json(Object.assign(Object.assign({}, userWithoutPassword), { name: `${user.firstName} ${user.lastName}` }));
 });
 exports.updateUserProfile = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     console.log('[updateUserProfile] Update request for user:', req.user.id);
@@ -429,11 +425,7 @@ exports.updateUserProfile = (0, error_middleware_1.asyncHandler)(async (req, res
     });
     console.log('[updateUserProfile] User updated successfully:', req.user.id);
     const userWithoutPassword = (0, auth_utils_1.excludePassword)(updatedUser);
-    res.json(Object.assign(Object.assign({}, userWithoutPassword), { name: `${updatedUser.firstName} ${updatedUser.lastName}`, email: updatedUser.email, medicalInfo: {
-            diabetesType: "type1",
-            diagnosisDate: updatedUser.diagnosisDate,
-            treatingDoctor: updatedUser.treatingDoctor || 'No asignado',
-        }, profileImage: updatedUser.profileImage || null }));
+    res.json(Object.assign(Object.assign({}, userWithoutPassword), { name: `${updatedUser.firstName} ${updatedUser.lastName}` }));
 });
 exports.updateGlucoseTarget = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     console.log('[updateGlucoseTarget] Update request for user:', req.user.id);
@@ -457,7 +449,8 @@ exports.updateGlucoseTarget = (0, error_middleware_1.asyncHandler)(async (req, r
         throw new Error('User not found');
     }
     console.log('[updateGlucoseTarget] Target updated successfully for user:', req.user.id);
-    res.json(user);
+    const userWithoutPassword = (0, auth_utils_1.excludePassword)(user);
+    res.json(Object.assign(Object.assign({}, userWithoutPassword), { name: `${user.firstName} ${user.lastName}` }));
 });
 exports.deleteUser = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     console.log('[deleteUser] Delete request for user:', req.user.id);

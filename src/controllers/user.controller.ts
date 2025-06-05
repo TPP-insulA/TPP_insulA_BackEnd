@@ -510,14 +510,7 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
 
   res.json({
     ...userWithoutPassword,
-    name: `${user.firstName} ${user.lastName}`,
-    email: user.email,
-    medicalInfo: {
-      diabetesType: "type1",
-      diagnosisDate: user.diagnosisDate,
-      treatingDoctor: user.treatingDoctor || 'No asignado',
-    },
-    profileImage: user.profileImage || null,
+    name: `${user.firstName} ${user.lastName}`
   });
 });
 
@@ -562,13 +555,6 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
   res.json({
     ...userWithoutPassword,
     name: `${updatedUser.firstName} ${updatedUser.lastName}`,
-    email: updatedUser.email,
-    medicalInfo: {
-      diabetesType: "type1",
-      diagnosisDate: updatedUser.diagnosisDate,
-      treatingDoctor: updatedUser.treatingDoctor || 'No asignado',
-    },
-    profileImage: updatedUser.profileImage || null,
   });
 });
 
@@ -596,7 +582,13 @@ export const updateGlucoseTarget = asyncHandler(async (req: Request, res: Respon
     throw new Error('User not found');
   }
   console.log('[updateGlucoseTarget] Target updated successfully for user:', req.user.id);
-  res.json(user);
+  const userWithoutPassword = excludePassword(user);
+  res.json(
+    {
+      ...userWithoutPassword,
+      name: `${user.firstName} ${user.lastName}`,
+    }
+  );
 });
 
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {

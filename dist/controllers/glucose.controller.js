@@ -25,7 +25,7 @@ exports.getGlucoseReadings = (0, error_middleware_1.asyncHandler)(async (req, re
     res.json(readings);
 });
 exports.createGlucoseReading = (0, error_middleware_1.asyncHandler)(async (req, res) => {
-    const { value, notes } = req.body;
+    const { value, notes, date } = req.body;
     const user = await app_1.prisma.user.findFirst({
         where: { id: req.user.id },
     });
@@ -41,6 +41,7 @@ exports.createGlucoseReading = (0, error_middleware_1.asyncHandler)(async (req, 
         const reading = await tx.glucoseReading.create({
             data: {
                 value,
+                timestamp: date ? new Date(date) : new Date(),
                 notes,
                 userId: req.user.id,
             },

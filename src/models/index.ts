@@ -79,6 +79,7 @@ export type UserWithoutPassword = Omit<User, 'password'>;
 export interface CreateGlucoseReadingInput {
   value: number;
   notes?: string;
+  date?: string; // ISO date string
 }
 
 export interface UpdateGlucoseTargetInput {

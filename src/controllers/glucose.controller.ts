@@ -33,7 +33,7 @@ export const getGlucoseReadings = asyncHandler(async (req: Request, res: Respons
 });
 
 export const createGlucoseReading = asyncHandler(async (req: Request, res: Response) => {
-  const { value, notes }: CreateGlucoseReadingInput = req.body;
+  const { value, notes, date }: CreateGlucoseReadingInput = req.body;
 
   const user = await prisma.user.findFirst({
     where: { id: req.user.id },
@@ -53,6 +53,7 @@ export const createGlucoseReading = asyncHandler(async (req: Request, res: Respo
     const reading = await tx.glucoseReading.create({
       data: {
         value,
+        timestamp: date ? new Date(date) : new Date(),
         notes,
         userId: req.user.id,
       },
