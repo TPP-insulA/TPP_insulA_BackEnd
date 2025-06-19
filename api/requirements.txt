@@ -1,0 +1,29 @@
+# API Framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+
+# Data validation and serialization
+pydantic==2.5.0
+
+# Machine Learning and Scientific Computing
+torch==2.7.1
+numpy==2.3.0
+
+# HTTP and Authentication
+python-multipart==0.0.20
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Utilities
+python-dateutil==2.9.0.post0
+
+# Development and Testing (optional)
+pytest==8.4.0
+pytest-asyncio==1.0.0
+httpx==0.28.1
+
+# Logging and Monitoring
+structlog==25.4.0
+
+# Environment management
+python-dotenv==1.0.0

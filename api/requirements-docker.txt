@@ -1,0 +1,10 @@
+# Lightweight production requirements for Docker
+fastapi==0.115.12
+uvicorn==0.34.3
+pydantic==2.5.0
+torch==2.1.0+cpu
+numpy==2.3.0
+python-multipart==0.0.20
+python-dateutil==2.9.0.post0
+structlog==25.4.0
+python-dotenv==1.0.0
