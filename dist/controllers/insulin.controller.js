@@ -67,7 +67,7 @@ exports.deleteInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (re
 exports.calculateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     console.log('[calculateInsulinPrediction] Starting prediction calculation');
     console.log('[calculateInsulinPrediction] Request body:', JSON.stringify(req.body, null, 2));
-    const { date, cgmPrev, glucoseObjective, carbs, insulinOnBoard, sleepLevel, workLevel, activityLevel, } = req.body;
+    const { date, cgmPrev, carbs, glucoseObjective, insulinOnBoard, sleepLevel, workLevel, activityLevel, } = req.body;
     try {
         console.log('[calculateInsulinPrediction] Preparing data for model prediction');
         console.log('[calculateInsulinPrediction] Input parameters:', {
@@ -81,7 +81,7 @@ exports.calculateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async 
             activityLevel
         });
         console.log('[calculateInsulinPrediction] Calling model prediction');
-        const recommendedDose = await (0, model_utils_1.getModelPrediction)({
+        const prediction = await (0, model_utils_1.getModelPrediction)({
             date,
             cgmPrev,
             glucoseObjective,
@@ -91,21 +91,35 @@ exports.calculateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async 
             workLevel,
             activityLevel,
         });
-        console.log('[calculateInsulinPrediction] Model prediction received:', recommendedDose);
+        console.log('[calculateInsulinPrediction] Model prediction received:', prediction);
         const data = {
             userId: req.user.id,
-            date: new Date(date),
+            date: date,
             cgmPrev: cgmPrev,
-            glucoseObjective: glucoseObjective,
             carbs: carbs,
-            insulinOnBoard: insulinOnBoard,
-            sleepLevel: sleepLevel,
-            workLevel: workLevel,
-            activityLevel: activityLevel,
-            recommendedDose: recommendedDose,
+            recommendedDose: prediction.total,
+            correctionDose: prediction.breakdown.correctionDose,
+            mealDose: prediction.breakdown.mealDose,
+            activityAdjustment: prediction.breakdown.activityAdjustment,
+            timeAdjustment: prediction.breakdown.timeAdjustment,
             applyDose: null,
             cgmPost: []
         };
+        if (glucoseObjective !== undefined) {
+            data.glucoseObjective = glucoseObjective;
+        }
+        if (insulinOnBoard !== undefined) {
+            data.insulinOnBoard = insulinOnBoard;
+        }
+        if (sleepLevel !== undefined) {
+            data.sleepLevel = sleepLevel;
+        }
+        if (workLevel !== undefined) {
+            data.workLevel = workLevel;
+        }
+        if (activityLevel !== undefined) {
+            data.activityLevel = activityLevel;
+        }
         console.log('[calculateInsulinPrediction] Creating database records');
         const result = await app_1.prisma.$transaction(async (tx) => {
             console.log('[calculateInsulinPrediction] Creating insulin prediction record');
@@ -116,7 +130,7 @@ exports.calculateInsulinPrediction = (0, error_middleware_1.asyncHandler)(async 
             const activity = await tx.activity.create({
                 data: {
                     type: 'insulin',
-                    value: recommendedDose,
+                    value: prediction.total,
                     timestamp: new Date(date),
                     userId: req.user.id,
                     sourceId: insulinPrediction.id,

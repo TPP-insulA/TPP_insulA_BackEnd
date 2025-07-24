@@ -117,17 +117,21 @@ export interface UpdateProfileImageInput {
 export interface InsulinPredictionData {
   date: string; // UTC ISO string
   cgmPrev: number[];
-  glucoseObjective: number;
   carbs: number;
-  insulinOnBoard: number;
-  sleepLevel: number;
-  workLevel: number;
-  activityLevel: number;
+  glucoseObjective?: number;
+  insulinOnBoard?: number;
+  sleepLevel?: number;
+  workLevel?: number;
+  activityLevel?: number;
 }
 
 export interface InsulinPredictionResult extends InsulinPredictionData {
   id: string;
   recommendedDose: number;
+  correctionDose: number;
+  mealDose: number;
+  activityAdjustment: number;
+  timeAdjustment: number;
   applyDose?: number;
   cgmPost: number[];
 }

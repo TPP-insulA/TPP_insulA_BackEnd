@@ -4,7 +4,6 @@ import { asyncHandler } from '../middleware/error.middleware';
 import { 
   InsulinPredictionData, 
 } from '../models';
-import { getLastDigit } from '../utils/string.utils';
 import { getModelPrediction } from '../utils/model.utils';
 
 
@@ -90,8 +89,8 @@ export const calculateInsulinPrediction = asyncHandler(async (req: Request, res:
   const { 
     date,
     cgmPrev,
-    glucoseObjective,
     carbs,
+    glucoseObjective,
     insulinOnBoard,
     sleepLevel,
     workLevel,
@@ -113,7 +112,7 @@ export const calculateInsulinPrediction = asyncHandler(async (req: Request, res:
 
     // Get prediction from the DRL model
     console.log('[calculateInsulinPrediction] Calling model prediction');
-    const recommendedDose = await getModelPrediction({
+    const prediction = await getModelPrediction({
       date,
       cgmPrev,
       glucoseObjective,
@@ -124,22 +123,38 @@ export const calculateInsulinPrediction = asyncHandler(async (req: Request, res:
       activityLevel,
     });
     
-    console.log('[calculateInsulinPrediction] Model prediction received:', recommendedDose);
+    console.log('[calculateInsulinPrediction] Model prediction received:', prediction);
 
-    const data = {
+    const data: any = {
       userId: req.user.id,
-      date: new Date(date),
+      date: date,
       cgmPrev: cgmPrev,
-      glucoseObjective: glucoseObjective,
       carbs: carbs,
-      insulinOnBoard: insulinOnBoard,
-      sleepLevel: sleepLevel,
-      workLevel: workLevel,
-      activityLevel: activityLevel,
-      recommendedDose: recommendedDose,
+      recommendedDose: prediction.total,
+      correctionDose: prediction.breakdown.correctionDose,
+      mealDose: prediction.breakdown.mealDose,
+      activityAdjustment: prediction.breakdown.activityAdjustment,
+      timeAdjustment: prediction.breakdown.timeAdjustment,
       applyDose: null,
       cgmPost: []
     };
+
+    // Add optional fields only if they are defined
+    if (glucoseObjective !== undefined) {
+      data.glucoseObjective = glucoseObjective;
+    }
+    if (insulinOnBoard !== undefined) {
+      data.insulinOnBoard = insulinOnBoard;
+    }
+    if (sleepLevel !== undefined) {
+      data.sleepLevel = sleepLevel;
+    }
+    if (workLevel !== undefined) {
+      data.workLevel = workLevel;
+    }
+    if (activityLevel !== undefined) {
+      data.activityLevel = activityLevel;
+    }
     
     console.log('[calculateInsulinPrediction] Creating database records');
     // Create calculation record and associated activity atomically
@@ -152,7 +167,7 @@ export const calculateInsulinPrediction = asyncHandler(async (req: Request, res:
       const activity = await tx.activity.create({
         data: {
           type: 'insulin',
-          value: recommendedDose,
+          value: prediction.total,
           timestamp: new Date(date),
           userId: req.user.id,
           sourceId: insulinPrediction.id,
