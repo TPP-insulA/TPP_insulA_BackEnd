@@ -46,13 +46,17 @@ model InsulinPrediction {
   id              String   @id @default(uuid())
   date            DateTime
   cgmPrev         Float[]
-  glucoseObjective Float
   carbs           Float
-  insulinOnBoard  Float
-  sleepLevel      Float
-  workLevel       Float
-  activityLevel   Float
+  glucoseObjective Float?
+  insulinOnBoard  Float?
+  sleepLevel      Float?
+  workLevel       Float?
+  activityLevel   Float?
   recommendedDose Float
+  correctionDose  Float    @default(0.0)
+  mealDose        Float    @default(0.0) 
+  activityAdjustment Float @default(0.0)
+  timeAdjustment  Float    @default(0.0)
   applyDose       Float?
   cgmPost         Float[]
   userId          String

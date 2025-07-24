@@ -55,7 +55,7 @@ def generate_cgm_history(current_value, trend_rate, minutes=30, interval=5):
 
 def get_available_models():
     """Obtiene la lista de modelos personalizados disponibles."""
-    utils_dir = Path('C:/Users/ruso_/TPP_insulA_BackEnd/src/utils')
+    utils_dir = Path(__file__).parent
     models = []
     
     # Buscar modelos personalizados

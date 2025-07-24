@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 MIN_BOLUS = 0.1
 MAX_BOLUS_ABS = 25.0
 CORRECTION_BG = 120.0
-ICR = 10.0
-ISF = 50.0
+ICR = 40.0
+ISF = 12.0
 
 # Modelo global para evitar recargas innecesarias
 _actors = {}
@@ -71,7 +71,7 @@ def load_actor_model(model_path, device='cpu'):
 
 def load_quest_params(patient_name):
     """Carga los parámetros del paciente desde Quest.csv."""
-    quest_file = Path('C:/Users/ruso_/TPP_insulA_BackEnd/src/utils/Quest.csv')
+    quest_file = Path(__file__).parent / 'Quest.csv'
     
     try:
         quest_df = pd.read_csv(quest_file)
@@ -247,17 +247,18 @@ def predict_insulin(data):
         logger.info(f'Input data: {json.dumps(data, indent=2)}')
         
         # Cargar modelo
-        patient_name = data.get('patient_name', 'adult#002')
-        model_path = Path(f'C:/Users/ruso_/TPP_insulA_BackEnd/src/utils/personalized_actor_{patient_name}.pth')
-        if not model_path.exists():
-            model_path = Path('C:/Users/ruso_/TPP_insulA_BackEnd/src/utils/population_actor.pth')
-            logger.warning(f"Personalized model for {patient_name} not found. Using population model.")
+        # patient_name = data.get('patient_name', 'adult#002')
+        # model_path = Path(__file__).parent / f'personalized_actor_{patient_name}.pth'
+        # if not model_path.exists():
+        #     model_path = Path('C:/Users/ruso_/TPP_insulA_BackEnd/src/utils/population_actor.pth')
+        #     logger.warning(f"Personalized model for {patient_name} not found. Using population model.")
 
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        model_path = Path(__file__).parent / 'population_actor.pth'
         actor = load_actor_model(model_path, device)
-        
+
         # Cargar parámetros del paciente
-        patient_icr, patient_isf = load_quest_params(patient_name)
+        #patient_icr, patient_isf = load_quest_params(patient_name)
         
         # Parsear los datos de entrada
         request_date = datetime.datetime.fromisoformat(data['date'].replace('Z', '+00:00'))
@@ -283,7 +284,7 @@ def predict_insulin(data):
         
         # Calcular el bolo
         mealtime = cho > 0
-        bolus, meal_dose, correction_dose = compute_bolus(gains, cho, cgm, iob, mealtime, patient_icr, patient_isf, cgm_history)
+        bolus, meal_dose, correction_dose = compute_bolus(gains, cho, cgm, iob, mealtime, ICR, ISF, cgm_history)
         
         # Convertir a float nativo
         bolus = round(float(bolus), 2)
