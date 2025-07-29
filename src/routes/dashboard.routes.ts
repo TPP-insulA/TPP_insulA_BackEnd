@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDashboardData } from '../controllers/dashboard.controller';
+import { getDashboardData, chatWithAI } from '../controllers/dashboard.controller';
 import { protect } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -49,5 +49,35 @@ const router = Router();
  *                     $ref: '#/components/schemas/InsulinPrediction'
  */
 router.get('/', protect, getDashboardData);
+
+/**
+ * @swagger
+ * /api/dashboard/chat:
+ *   post:
+ *     summary: Obtener respuesta de Gemini AI para el chat
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               contents:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array de mensajes del usuario
+ *     responses:
+ *       200:
+ *         description: Respuesta cruda de Gemini AI
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ */
+router.post('/chat', protect, chatWithAI);
 
 export default router;
